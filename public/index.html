@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SHEREBOY TECH LTD — Websites & Full-Stack Web Applications</title>
+  <meta name="description"
+    content="SHEREBOY TECH LTD builds modern, responsive websites and full-stack web applications for businesses, organizations and individuals in Nigeria and beyond.">
+  <meta name="theme-color" content="#0B1220">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="SHEREBOY TECH LTD — Websites & Full-Stack Web Applications">
+  <meta property="og:description"
+    content="We design and build modern websites and full-stack web applications for businesses.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="/assets/og-cover.jpg">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="SHEREBOY TECH LTD">
+  <meta name="twitter:description" content="Modern websites and full-stack web applications, built for business.">
+
+  <link rel="canonical" href="/">
+  <link rel="icon" href="/assets/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+
+  <!-- ============ NAV ============ -->
+  <header class="nav" id="nav">
+    <div class="nav__inner">
+      <a href="/" class="nav__brand" id="navBrand">
+        <img src="" alt="SHEREBOY TECH LTD logo" class="nav__logo" id="navLogo" hidden>
+        <span id="navBrandText"><span class="nav__prompt">$</span> shereboy<span class="nav__accent">.tech</span></span>
+      </a>
+      <nav class="nav__links" id="navLinks">
+        <a href="#services">Services</a>
+        <a href="#projects">Projects</a>
+        <a href="#blog">Blog</a>
+        <a href="#reviews">Reviews</a>
+        <a href="#about">About</a>
+        <a href="#contact" class="nav__cta">Contact us</a>
+      </nav>
+      <button class="nav__toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ============ HERO ============ -->
+    <section class="hero">
+      <div class="hero__inner">
+        <p class="eyebrow">$ whoami</p>
+        <h1 class="hero__headline">
+          We build <span class="hl">software</span><br>
+          that businesses<br>
+          <span class="type-cursor" id="heroType">run on</span>
+        </h1>
+        <p class="hero__sub">
+          SHEREBOY TECH LTD is a registered Nigerian technology studio. We design, build and ship
+          modern websites and full-stack web applications — from first commit to production.
+        </p>
+        <div class="hero__actions">
+          <a href="#projects" class="btn btn--primary">View our projects</a>
+          <a href="#contact" class="btn btn--ghost">Contact us</a>
+        </div>
+      </div>
+      <div class="hero__panel" aria-hidden="true">
+        <div class="code-window">
+          <div class="code-window__bar"><span></span><span></span><span></span></div>
+          <pre class="code-window__body"><code><span class="c-key">const</span> studio = {
+  name: <span class="c-str">"SHEREBOY TECH LTD"</span>,
+  stack: [<span class="c-str">"Node"</span>, <span class="c-str">"Express"</span>, <span class="c-str">"Supabase"</span>],
+  ships: <span class="c-key">true</span>,
+};</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SERVICES ============ -->
+    <section class="section section--light" id="services">
+      <p class="eyebrow eyebrow--dark">$ services --list</p>
+      <h2 class="section__title">What we build</h2>
+      <div class="grid grid--services" id="servicesGrid">
+        <p class="empty-state">Loading services…</p>
+      </div>
+    </section>
+
+    <!-- ============ FEATURED PROJECTS ============ -->
+    <section class="section" id="projects">
+      <p class="eyebrow">$ ls ./projects --featured</p>
+      <h2 class="section__title section__title--onDark">Recent work</h2>
+      <div class="grid grid--projects" id="projectsGrid">
+        <p class="empty-state empty-state--onDark">Loading projects…</p>
+      </div>
+      <div class="section__footer">
+        <a href="#projects" class="btn btn--outline" id="viewAllProjects">View all projects</a>
+      </div>
+    </section>
+
+    <!-- ============ REVIEWS ============ -->
+    <section class="section section--light" id="reviews">
+      <p class="eyebrow eyebrow--dark">$ cat reviews.json</p>
+      <h2 class="section__title">What clients say</h2>
+      <div class="grid grid--reviews" id="reviewsGrid">
+        <p class="empty-state">Loading reviews…</p>
+      </div>
+    </section>
+
+    <!-- ============ TECH STACK ============ -->
+    <section class="section section--stack">
+      <p class="eyebrow">$ node -e "console.log(stack)"</p>
+      <h2 class="section__title section__title--onDark">Our stack</h2>
+      <div class="badges">
+        <span class="badge">JavaScript</span>
+        <span class="badge">Node.js</span>
+        <span class="badge">Express</span>
+        <span class="badge">Supabase</span>
+        <span class="badge">PostgreSQL</span>
+        <span class="badge">REST APIs</span>
+        <span class="badge">HTML5</span>
+        <span class="badge">CSS3</span>
+        <span class="badge">Gemini AI</span>
+        <span class="badge">Render</span>
+      </div>
+    </section>
+
+    <!-- ============ BLOG ============ -->
+    <section class="section section--light" id="blog">
+      <p class="eyebrow eyebrow--dark">$ curl /blog --latest</p>
+      <h2 class="section__title">From the blog</h2>
+      <div class="grid grid--blog" id="blogGrid">
+        <p class="empty-state">Loading posts…</p>
+      </div>
+    </section>
+
+    <!-- ============ AI ASSISTANT ============ -->
+    <section class="section section--ai" id="ai-assistant">
+      <p class="eyebrow">$ ./sheroboy-ai --start</p>
+      <h2 class="section__title section__title--onDark">Ask the SHEREBOY AI Assistant</h2>
+      <p class="section__lede">Questions about our services, our stack, or how to get started? Ask below.</p>
+
+      <div class="ai-chat" id="aiChat">
+        <div class="ai-chat__log" id="aiChatLog">
+          <div class="ai-msg ai-msg--bot">Hi, I'm the SHEREBOY AI Assistant. Ask me anything about our services, our
+            stack, or how to work with us.</div>
+        </div>
+        <form class="ai-chat__form" id="aiChatForm">
+          <input type="text" id="aiChatInput" maxlength="800" placeholder="Ask a question…" autocomplete="off" required>
+          <button type="submit" class="btn btn--primary">Send</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ============ ABOUT / CEO ============ -->
+    <section class="section section--light" id="about">
+      <p class="eyebrow eyebrow--dark">$ cat about.md</p>
+      <h2 class="section__title">About SHEREBOY TECH LTD</h2>
+      <div class="about-grid">
+        <div class="about-copy" id="aboutCopy">
+          <p id="aboutDescription">Loading…</p>
+          <div class="about-copy__row">
+            <div>
+              <h3>Mission</h3>
+              <p id="aboutMission">—</p>
+            </div>
+            <div>
+              <h3>Vision</h3>
+              <p id="aboutVision">—</p>
+            </div>
+          </div>
+          <p class="about-copy__meta">CAC Registration: <span id="aboutCac">[INSERT CAC NUMBER HERE]</span></p>
+        </div>
+        <div class="ceo-card">
+          <div class="ceo-card__photo" id="ceoPhoto">[CEO PHOTO]</div>
+          <h3 id="ceoName">BAWO MADAMEDON</h3>
+          <p class="ceo-card__title" id="ceoTitle">CEO, SHEREBOY TECH LTD</p>
+          <p id="ceoBio">[CEO BIO]</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CONTACT ============ -->
+    <section class="section section--contact" id="contact">
+      <p class="eyebrow">$ mail --send</p>
+      <h2 class="section__title section__title--onDark">Let's build something</h2>
+      <p class="section__lede">Tell us what you're building. We usually reply within a day.</p>
+      <div class="contact-actions">
+        <a class="btn btn--primary" id="contactEmail" href="mailto:shereboyofficial1515@gmail.com">Email us</a>
+        <a class="btn btn--outline" id="contactWhatsapp" href="https://wa.me/2348124529757" target="_blank"
+          rel="noopener">WhatsApp</a>
+        <a class="btn btn--outline" id="contactCall" href="tel:07010288040">Call us</a>
+      </div>
+      <div class="social-links" id="socialLinks">
+        <a href="#" id="socialInstagram" target="_blank" rel="noopener">Instagram</a>
+        <a href="#" id="socialTiktok" target="_blank" rel="noopener">TikTok</a>
+        <a href="#" id="socialYoutube" target="_blank" rel="noopener">YouTube</a>
+      </div>
+
+      <form class="contact-form" id="contactForm">
+        <div class="contact-form__row">
+          <div>
+            <label for="cfName">Name</label>
+            <input type="text" id="cfName" name="name" maxlength="150" required>
+          </div>
+          <div>
+            <label for="cfEmail">Email</label>
+            <input type="email" id="cfEmail" name="email" maxlength="200" required>
+          </div>
+        </div>
+        <div class="contact-form__row">
+          <div>
+            <label for="cfPhone">Phone (optional)</label>
+            <input type="tel" id="cfPhone" name="phone" maxlength="50">
+          </div>
+          <div>
+            <label for="cfSubject">Subject (optional)</label>
+            <input type="text" id="cfSubject" name="subject" maxlength="200">
+          </div>
+        </div>
+        <label for="cfMessage">Message</label>
+        <textarea id="cfMessage" name="message" rows="5" maxlength="3000" required></textarea>
+        <button type="submit" class="btn btn--primary" id="contactSubmitBtn">Send message</button>
+        <p class="contact-form__status" id="contactFormStatus" hidden></p>
+      </form>
+    </section>
+
+  </main>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="footer">
+    <div class="footer__inner">
+      <div>
+        <div class="footer__brandRow" id="footerBrandRow">
+          <img src="" alt="SHEREBOY TECH LTD logo" class="footer__logo" id="footerLogo" hidden>
+          <p class="footer__brand" id="footerBrandText">$ shereboy.tech</p>
+        </div>
+        <p class="footer__desc">Modern websites and full-stack web applications, built for business.</p>
+      </div>
+      <div class="footer__col">
+        <h4>Company</h4>
+        <a href="#about">About</a>
+        <a href="#services">Services</a>
+        <a href="#projects">Projects</a>
+        <a href="#blog">Blog</a>
+      </div>
+      <div class="footer__col">
+        <h4>Contact</h4>
+        <a href="mailto:shereboyofficial1515@gmail.com">shereboyofficial1515@gmail.com</a>
+        <a href="tel:07010288040">07010288040</a>
+        <a href="https://wa.me/2348124529757" target="_blank" rel="noopener">WhatsApp</a>
+      </div>
+    </div>
+    <p class="footer__bottom">&copy; <span id="year"></span> SHEREBOY TECH LTD. All rights reserved.</p>
+  </footer>
+
+  <!-- ============ BLOG POST MODAL (client-side route: /blog/:slug) ============ -->
+  <div class="modal" id="postModal" hidden>
+    <div class="modal__backdrop" id="postModalBackdrop"></div>
+    <article class="modal__panel">
+      <button class="modal__close" id="postModalClose" aria-label="Close">&times;</button>
+      <div id="postModalContent"></div>
+    </article>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+
+</html>

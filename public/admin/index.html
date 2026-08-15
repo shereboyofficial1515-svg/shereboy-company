@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — SHEREBOY TECH LTD</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+
+<body>
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+
+  <!-- ===== LOGIN VIEW ===== -->
+  <div class="login-screen" id="loginScreen">
+    <form class="login-card" id="loginForm">
+      <p class="login-card__eyebrow">$ admin --login</p>
+      <h1>SHEREBOY TECH</h1>
+      <p class="login-card__sub">Admin dashboard</p>
+      <label>Username</label>
+      <input type="text" id="loginUsername" autocomplete="username" required>
+      <label>Password</label>
+      <input type="password" id="loginPassword" autocomplete="current-password" required>
+      <button type="submit" class="btn btn--primary">Sign in</button>
+      <p class="login-card__error" id="loginError" hidden></p>
+    </form>
+  </div>
+
+  <!-- ===== DASHBOARD VIEW ===== -->
+  <div class="dash" id="dashScreen" hidden>
+    <aside class="dash__sidebar">
+      <p class="dash__brand">$ shereboy.tech</p>
+      <nav class="dash__nav">
+        <button class="dash__navBtn is-active" data-view="overview">Overview</button>
+        <button class="dash__navBtn" data-view="projects">Projects</button>
+        <button class="dash__navBtn" data-view="blog">Blog</button>
+        <button class="dash__navBtn" data-view="reviews">Reviews</button>
+        <button class="dash__navBtn" data-view="messages">Messages <span class="nav-badge" id="unreadBadge"
+            hidden></span></button>
+        <button class="dash__navBtn" data-view="services">Services</button>
+        <button class="dash__navBtn" data-view="company">Company Settings</button>
+      </nav>
+      <button class="dash__logout" id="logoutBtn">Log out</button>
+    </aside>
+
+    <main class="dash__main">
+      <!-- Overview -->
+      <section class="dash__view" id="view-overview">
+        <h2>Overview</h2>
+        <div class="stat-grid" id="statGrid"></div>
+        <h3>Recent activity</h3>
+        <ul class="activity-list" id="activityList"></ul>
+      </section>
+
+      <!-- Projects -->
+      <section class="dash__view" id="view-projects" hidden>
+        <div class="view-header">
+          <h2>Projects</h2>
+          <button class="btn btn--primary" id="newProjectBtn">+ New project</button>
+        </div>
+        <div class="table-wrap">
+          <table class="dash-table" id="projectsTable">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Live URL</th>
+                <th>Featured</th>
+                <th>Published</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Blog -->
+      <section class="dash__view" id="view-blog" hidden>
+        <div class="view-header">
+          <h2>Blog posts</h2>
+          <button class="btn btn--primary" id="newPostBtn">+ New post</button>
+        </div>
+        <div class="table-wrap">
+          <table class="dash-table" id="blogTable">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Featured</th>
+                <th>Published</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Reviews -->
+      <section class="dash__view" id="view-reviews" hidden>
+        <div class="view-header">
+          <h2>Client reviews</h2>
+          <button class="btn btn--primary" id="newReviewBtn">+ New review</button>
+        </div>
+        <div class="table-wrap">
+          <table class="dash-table" id="reviewsTable">
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Rating</th>
+                <th>Featured</th>
+                <th>Published</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Messages -->
+      <section class="dash__view" id="view-messages" hidden>
+        <div class="view-header">
+          <h2>Contact messages</h2>
+        </div>
+        <div class="table-wrap">
+          <table class="dash-table" id="messagesTable">
+            <thead>
+              <tr>
+                <th>From</th>
+                <th>Subject</th>
+                <th>Received</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Services -->
+      <section class="dash__view" id="view-services" hidden>
+        <div class="view-header">
+          <h2>Services</h2>
+          <button class="btn btn--primary" id="newServiceBtn">+ New service</button>
+        </div>
+        <div class="table-wrap">
+          <table class="dash-table" id="servicesTable">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Order</th>
+                <th>Published</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Company settings -->
+      <section class="dash__view" id="view-company" hidden>
+        <h2>Company settings</h2>
+        <form class="settings-form" id="companyForm"></form>
+      </section>
+    </main>
+  </div>
+
+  <!-- ===== Generic modal for create/edit forms ===== -->
+  <div class="modal" id="formModal" hidden>
+    <div class="modal__backdrop" id="formModalBackdrop"></div>
+    <div class="modal__panel">
+      <button class="modal__close" id="formModalClose">&times;</button>
+      <h3 id="formModalTitle"></h3>
+      <form id="formModalForm"></form>
+    </div>
+  </div>
+
+  <script src="/admin/admin.js"></script>
+</body>
+
+</html>
