@@ -39,8 +39,67 @@ function setButtonLoading(btn, loading, loadingText = 'Please wait…') {
 }
 
 // =========================================================
-// Helpers
+// Preloader — animates the site name in, then reveals the page
 // =========================================================
+(function initPreloader() {
+  const preloader = document.getElementById('preloader');
+  if (!preloader) return;
+
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.body.classList.add('is-preloading');
+
+  const MIN_DISPLAY = prefersReducedMotion ? 150 : 1650;
+  const start = Date.now();
+  let hidden = false;
+
+  function hidePreloader() {
+    if (hidden) return;
+    hidden = true;
+    const elapsed = Date.now() - start;
+    const wait = Math.max(MIN_DISPLAY - elapsed, 0);
+    setTimeout(() => {
+      preloader.classList.add('is-hidden');
+      document.body.classList.remove('is-preloading');
+      setTimeout(() => preloader.remove(), 550);
+    }, wait);
+  }
+
+  if (document.readyState === 'complete') {
+    hidePreloader();
+  } else {
+    window.addEventListener('load', hidePreloader);
+  }
+  // Safety net in case 'load' is delayed by a slow third-party asset
+  setTimeout(hidePreloader, 4500);
+})();
+
+// =========================================================
+// Scroll reveals — fade/slide elements in as they enter view
+// =========================================================
+const revealObserver = 'IntersectionObserver' in window
+  ? new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' })
+  : null;
+
+function observeReveals(root = document) {
+  const els = root.querySelectorAll ? root.querySelectorAll('.reveal:not(.is-visible)') : [];
+  if (!revealObserver) {
+    els.forEach(el => el.classList.add('is-visible')); // graceful fallback
+    return;
+  }
+  els.forEach(el => revealObserver.observe(el));
+}
+document.addEventListener('DOMContentLoaded', () => observeReveals());
+// In case DOMContentLoaded already fired before this script ran
+if (document.readyState !== 'loading') observeReveals();
+
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str ?? '';
@@ -71,9 +130,13 @@ const navToggle = document.getElementById('navToggle');
 const navLinks = document.getElementById('navLinks');
 navToggle?.addEventListener('click', () => {
   const isOpen = navLinks.classList.toggle('is-open');
+  navToggle.classList.toggle('is-active', isOpen);
   navToggle.setAttribute('aria-expanded', String(isOpen));
 });
-navLinks?.querySelectorAll('a').forEach(a => a.addEventListener('click', () => navLinks.classList.remove('is-open')));
+navLinks?.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+  navLinks.classList.remove('is-open');
+  navToggle?.classList.remove('is-active');
+}));
 
 // =========================================================
 // Company info
@@ -90,7 +153,7 @@ async function loadCompanyInfo() {
     document.getElementById('ceoTitle').textContent = company.ceo_title || 'CEO, SHEREBOY TECH LTD';
     document.getElementById('ceoBio').textContent = company.ceo_bio || '[CEO BIO]';
     if (company.ceo_photo_url) {
-      document.getElementById('ceoPhoto').innerHTML = `<img src="${escapeHtml(company.ceo_photo_url)}" alt="${escapeHtml(company.ceo_name)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      document.getElementById('ceoPhoto').innerHTML = `<img src="${escapeHtml(company.ceo_photo_url)}" alt="${escapeHtml(company.ceo_name)}" class="img-fade" onload="this.classList.add('is-loaded')" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
     }
     if (company.email) document.getElementById('contactEmail').href = `mailto:${company.email}`;
     if (company.whatsapp) document.getElementById('contactWhatsapp').href = `https://wa.me/${company.whatsapp.replace(/\D/g, '')}`;
@@ -124,12 +187,13 @@ async function loadServices() {
   try {
     const { services } = await apiGet('/api/services');
     if (!services || !services.length) { grid.innerHTML = '<p class="empty-state">Services will be listed here soon.</p>'; return; }
-    grid.innerHTML = services.map(s => `
-      <div class="card">
+    grid.innerHTML = services.map((s, i) => `
+      <div class="card reveal reveal-d${Math.min(i % 4, 4)}">
         <h3>${escapeHtml(s.title)}</h3>
         <p>${escapeHtml(s.description || '')}</p>
       </div>
     `).join('');
+    observeReveals(grid);
   } catch (err) {
     grid.innerHTML = errorRow('Unable to load services right now.', 'loadServices');
   }
@@ -146,9 +210,9 @@ async function loadProjects() {
     const { projects } = await apiGet('/api/projects?featured=true&limit=6');
     const list = projects || [];
     if (!list.length) { grid.innerHTML = '<p class="empty-state empty-state--onDark">Projects will be showcased here soon.</p>'; return; }
-    grid.innerHTML = list.map(p => `
-      <div class="project-card">
-        ${p.image_url ? `<img class="project-card__img" src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.title)}" loading="lazy">` : `<div class="project-card__img"></div>`}
+    grid.innerHTML = list.map((p, i) => `
+      <div class="project-card reveal reveal-d${Math.min(i % 4, 4)}">
+        ${p.image_url ? `<img class="project-card__img img-fade" src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.title)}" loading="lazy" onload="this.classList.add('is-loaded')">` : `<div class="project-card__img"></div>`}
         <div class="project-card__body">
           <p class="project-card__cat">${escapeHtml(p.category || 'Web Project')}</p>
           <h3>${escapeHtml(p.title)}</h3>
@@ -158,6 +222,7 @@ async function loadProjects() {
         </div>
       </div>
     `).join('');
+    observeReveals(grid);
   } catch (err) {
     grid.innerHTML = errorRow('Unable to load projects right now.', 'loadProjects');
   }
@@ -173,14 +238,15 @@ async function loadReviews() {
   try {
     const { reviews } = await apiGet('/api/reviews');
     if (!reviews || !reviews.length) { grid.innerHTML = '<p class="empty-state">Client reviews will appear here soon.</p>'; return; }
-    grid.innerHTML = reviews.map(r => `
-      <div class="card review-card">
+    grid.innerHTML = reviews.map((r, i) => `
+      <div class="card review-card reveal reveal-d${Math.min(i % 4, 4)}">
         <div class="review-card__stars">${'★'.repeat(r.rating || 5)}${'☆'.repeat(5 - (r.rating || 5))}</div>
         <p>"${escapeHtml(r.review_text)}"</p>
         <p class="review-card__name">${escapeHtml(r.client_name)}</p>
         <p class="review-card__pos">${escapeHtml(r.client_position || '')}</p>
       </div>
     `).join('');
+    observeReveals(grid);
   } catch (err) {
     grid.innerHTML = errorRow('Unable to load reviews right now.', 'loadReviews');
   }
@@ -196,9 +262,9 @@ async function loadBlog() {
   try {
     const { posts } = await apiGet('/api/blog?limit=3');
     if (!posts || !posts.length) { grid.innerHTML = '<p class="empty-state">Blog posts will appear here soon.</p>'; return; }
-    grid.innerHTML = posts.map(p => `
-      <div class="card">
-        ${p.featured_image_url ? `<img class="blog-card__img" src="${escapeHtml(p.featured_image_url)}" alt="${escapeHtml(p.title)}" loading="lazy">` : ''}
+    grid.innerHTML = posts.map((p, i) => `
+      <div class="card reveal reveal-d${Math.min(i % 4, 4)}">
+        ${p.featured_image_url ? `<img class="blog-card__img img-fade" src="${escapeHtml(p.featured_image_url)}" alt="${escapeHtml(p.title)}" loading="lazy" onload="this.classList.add('is-loaded')">` : ''}
         <p class="blog-card__meta">${new Date(p.created_at).toLocaleDateString()} · ${escapeHtml(p.author || 'SHEREBOY TECH LTD')}</p>
         <h3>${escapeHtml(p.title)}</h3>
         <p>${escapeHtml(p.excerpt || '')}</p>
@@ -208,6 +274,7 @@ async function loadBlog() {
     grid.querySelectorAll('[data-slug]').forEach(a => {
       a.addEventListener('click', (e) => { e.preventDefault(); openPost(a.dataset.slug); });
     });
+    observeReveals(grid);
   } catch (err) {
     grid.innerHTML = errorRow('Unable to load blog posts right now.', 'loadBlog');
   }
@@ -345,6 +412,9 @@ contactForm?.addEventListener('submit', async (e) => {
     contactStatus.className = 'contact-form__status contact-form__status--error';
     contactStatus.hidden = false;
     showToast(err.message, 'error');
+    contactForm.classList.remove('shake');
+    void contactForm.offsetWidth; // restart animation if triggered again
+    contactForm.classList.add('shake');
   } finally {
     setButtonLoading(contactSubmitBtn, false);
   }
