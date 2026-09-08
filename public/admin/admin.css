@@ -92,13 +92,13 @@ label { font-size: 0.85rem; font-weight: 600; color: var(--text-mute); display: 
 .toast {
   background: #fff; border: 1px solid var(--border); border-left: 4px solid var(--signal);
   color: var(--text); padding: 0.9rem 1.1rem; border-radius: 8px; font-size: 0.9rem;
-  box-shadow: 0 12px 30px rgba(18,23,43,0.15); animation: toast-in 0.25s ease;
+  box-shadow: 0 12px 30px rgba(18,23,43,0.15); animation: toast-in 0.32s cubic-bezier(.2,.8,.2,1);
 }
 .toast--success { border-left-color: #1b8a4a; }
 .toast--error { border-left-color: #d9453f; }
 .toast--info { border-left-color: var(--signal); }
 .toast.is-leaving { animation: toast-out 0.2s ease forwards; }
-@keyframes toast-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes toast-in { from { opacity: 0; transform: translateX(20px) scale(0.97); } to { opacity: 1; transform: translateX(0) scale(1); } }
 @keyframes toast-out { to { opacity: 0; transform: translateX(20px); } }
 
 /* ===== Spinners ===== */
@@ -122,3 +122,15 @@ label { font-size: 0.85rem; font-weight: 600; color: var(--text-mute); display: 
 
 /* ===== Login button loading ===== */
 .login-card .btn.is-loading { width: 100%; justify-content: center; }
+
+/* ===== Micro-interactions: buttons, nav, table rows, modal ===== */
+.btn { transition: transform 0.18s cubic-bezier(.2,.8,.2,1), background 0.18s ease, box-shadow 0.2s ease; }
+.btn:active { transform: scale(0.97); }
+.btn--primary:hover { box-shadow: 0 8px 20px rgba(76,111,255,0.28); }
+.dash__navBtn { transition: background 0.18s ease, color 0.18s ease; }
+.stat-card, .table-wrap { transition: box-shadow 0.25s ease; }
+.dash-table tbody tr { transition: background 0.15s ease; }
+.dash-table tbody tr:hover { background: var(--paper); }
+@keyframes fade-slide-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.stat-card, .modal__panel { animation: fade-slide-up 0.35s ease; }
+input:focus, textarea:focus { box-shadow: 0 0 0 3px rgba(76,111,255,0.15); outline: none; }
