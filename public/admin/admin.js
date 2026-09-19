@@ -46,6 +46,10 @@ function escapeHtml(str) {
 }
 function pill(bool) { return `<span class="pill ${bool ? 'pill--yes' : 'pill--no'}">${bool ? 'Yes' : 'No'}</span>`; }
 
+const ICON_WARNING = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" style="width:1em;height:1em;vertical-align:-0.125em"><path d="M12 3.5l9.5 16.5H2.5L12 3.5z" stroke-linejoin="round"></path><path d="M12 10v4.5" stroke-linecap="round"></path><circle cx="12" cy="17.5" r="0.9" fill="currentColor" stroke="none"></circle></svg>';
+const ICON_STAR = '<svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:0.9em;height:0.9em;vertical-align:-0.1em"><path d="M12 2.5l2.9 6.2 6.8.7-5.1 4.6 1.5 6.7L12 17.4 5.9 20.7l1.5-6.7-5.1-4.6 6.8-.7L12 2.5z"></path></svg>';
+function starRating(n) { return ICON_STAR.repeat(Math.min(Math.max(parseInt(n, 10) || 0, 0), 5)); }
+
 function skeletonRows(cols, count = 4) {
   return Array.from({ length: count }).map(() => `
     <tr class="skeleton-row">${Array.from({ length: cols }).map(() => `<td><div class="skeleton" style="width:${60 + Math.random() * 30}%"></div></td>`).join('')}</tr>
@@ -53,7 +57,7 @@ function skeletonRows(cols, count = 4) {
 }
 
 function errorRowHtml(cols, message, retryFnName) {
-  return `<tr><td colspan="${cols}"><div class="error-row">⚠ ${escapeHtml(message)} <button class="retry-btn" onclick="${retryFnName}()">Retry</button></div></td></tr>`;
+  return `<tr><td colspan="${cols}"><div class="error-row">${ICON_WARNING} ${escapeHtml(message)} <button class="retry-btn" onclick="${retryFnName}()">Retry</button></div></td></tr>`;
 }
 
 async function api(path, opts = {}) {
@@ -181,7 +185,7 @@ async function loadOverview() {
       badge.hidden = true;
     }
   } catch (err) {
-    statGrid.innerHTML = `<div class="error-row">⚠ Failed to load stats. <button class="retry-btn" onclick="loadOverview()">Retry</button></div>`;
+    statGrid.innerHTML = `<div class="error-row">${ICON_WARNING} Failed to load stats. <button class="retry-btn" onclick="loadOverview()">Retry</button></div>`;
     activityList.innerHTML = '';
   }
 }
@@ -382,7 +386,7 @@ async function loadReviews() {
     tbody.innerHTML = reviews.map(r => `
       <tr>
         <td>${escapeHtml(r.client_name)}</td>
-        <td>${'★'.repeat(r.rating || 5)}</td>
+        <td>${starRating(r.rating || 5)}</td>
         <td>${pill(r.featured)}</td>
         <td>${pill(r.published)}</td>
         <td class="actions">
@@ -564,6 +568,6 @@ async function loadCompany() {
       }
     };
   } catch (err) {
-    form.innerHTML = `<div class="full error-row">⚠ Failed to load company settings. <button type="button" class="retry-btn" onclick="loadCompany()">Retry</button></div>`;
+    form.innerHTML = `<div class="full error-row">${ICON_WARNING} Failed to load company settings. <button type="button" class="retry-btn" onclick="loadCompany()">Retry</button></div>`;
   }
 }
