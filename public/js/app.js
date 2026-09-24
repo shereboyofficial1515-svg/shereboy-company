@@ -317,13 +317,14 @@ async function loadCompanyInfo() {
     document.getElementById('aboutVision').textContent = company.vision ||
       'To be a trusted technology partner for ambitious businesses across Africa.';
     document.getElementById('aboutCac').textContent = company.cac_number || 'Registration in progress';
+    document.getElementById('aboutAddress').textContent = company.address || 'Nigeria';
+    document.getElementById('aboutEmail').textContent = company.email || 'shereboyofficial1515@gmail.com';
     document.getElementById('ceoName').textContent = company.ceo_name || 'BAWO MADAMEDON';
     document.getElementById('ceoTitle').textContent = company.ceo_title || 'CEO, SHEREBOY TECH LTD';
-    document.getElementById('ceoBio').textContent = company.ceo_bio ||
-      "Leading SHEREBOY TECH LTD's mission to design and ship modern, reliable software for businesses across Nigeria and beyond.";
+    document.getElementById('ceoBio').textContent = company.ceo_bio || 'A detailed leadership profile is coming soon.';
     if (company.ceo_photo_url) {
       document.getElementById('ceoPhoto').outerHTML = mediaImg({
-        id: 'ceoPhoto', src: company.ceo_photo_url, alt: company.ceo_name || 'CEO photo', className: 'ceo-card__photo', fallbackIcon: ICONS.person, lazy: false
+        id: 'ceoPhoto', src: company.ceo_photo_url, alt: company.ceo_name || 'CEO photo', className: 'exec-profile__portrait', fallbackIcon: ICONS.person, lazy: false
       });
     }
     if (company.email) document.getElementById('contactEmail').href = `mailto:${company.email.replace(/^mailto:/i, '').trim()}`;

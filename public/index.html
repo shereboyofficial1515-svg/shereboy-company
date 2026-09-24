@@ -57,7 +57,7 @@
     <div class="nav__inner">
       <a href="/" class="nav__brand" id="navBrand">
         <img src="" alt="SHEREBOY TECH LTD logo" class="nav__logo" id="navLogo" hidden>
-        <span id="navBrandText"> Shereboy<span class="nav__accent">Tech</span></span>
+        <span id="navBrandText">Shereboy<span class="nav__accent">Tech</span></span>
       </a>
       <nav class="nav__links" id="navLinks">
         <a href="#services">Services</a>
@@ -76,7 +76,8 @@
   <main>
 
     <!-- ============ HERO ============ -->
-    <section class="hero">
+    <section class="hero" id="hero">
+      <div class="hero__media" aria-hidden="true"></div>
       <div class="hero__inner">
         <p class="eyebrow reveal">whoami</p>
         <h1 class="hero__headline reveal reveal-d1">
@@ -93,16 +94,19 @@
           <a href="#contact" class="btn btn--ghost">Contact us</a>
         </div>
       </div>
-      <div class="hero__panel reveal reveal-d2" aria-hidden="true">
-        <div class="code-window">
-          <div class="code-window__bar"><span></span><span></span><span></span></div>
-          <pre class="code-window__body"><code><span class="c-key">const</span> studio = {
-  name: <span class="c-str">"SHEREBOY TECH LTD"</span>,
-  stack: [<span class="c-str">"Node"</span>, <span class="c-str">"Express"</span>, <span class="c-str">"Supabase"</span>],
-  ships: <span class="c-key">true</span>,
-};</code></pre>
+      <div class="hero__badge reveal reveal-d4" aria-hidden="true">
+        <div class="hero__badgeRow"><span class="hero__badgeDot"></span>Now shipping in production</div>
+        <div class="hero__badgeStack">
+          <span>Node.js</span><span class="hero__badgeSep">/</span><span>Express</span><span
+            class="hero__badgeSep">/</span><span>Supabase</span>
         </div>
       </div>
+      <a href="#services" class="hero__scrollHint" aria-label="Scroll to services">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          aria-hidden="true">
+          <path d="M12 4v15M6 13l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </a>
     </section>
 
     <!-- ============ SERVICES ============ -->
@@ -183,34 +187,86 @@
     </section>
 
     <!-- ============ ABOUT / CEO ============ -->
-    <section class="section section--light" id="about">
-      <p class="eyebrow eyebrow--dark reveal">cat about.md</p>
-      <h2 class="section__title reveal reveal-d1">About SHEREBOY TECH LTD</h2>
+    <section class="section section--light section--about" id="about">
+      <p class="eyebrow eyebrow--dark reveal">about the company</p>
+      <h2 class="section__title about__headline reveal reveal-d1">Building digital products that move businesses
+        forward.</h2>
+
       <div class="about-grid">
         <div class="about-copy reveal reveal-d2" id="aboutCopy">
+          <p class="about-copy__label">Our story</p>
           <p id="aboutDescription">Loading…</p>
-          <div class="about-copy__row">
-            <div>
-              <h3>Mission</h3>
-              <p id="aboutMission">—</p>
-            </div>
-            <div>
-              <h3>Vision</h3>
-              <p id="aboutVision">—</p>
-            </div>
-          </div>
-          <p class="about-copy__meta">CAC Registration: <span id="aboutCac">Registration in progress</span></p>
         </div>
-        <div class="ceo-card reveal reveal-d3">
-          <div class="ceo-card__photo media" id="ceoPhoto">
-            <div class="media__fallback" aria-hidden="true">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" stroke-linecap="round"></path></svg>
+
+        <div class="exec-profile reveal reveal-d3">
+          <div class="exec-profile__frame">
+            <div class="exec-profile__portrait media" id="ceoPhoto">
+              <div class="media__fallback" aria-hidden="true">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+                  <circle cx="12" cy="8" r="4"></circle>
+                  <path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" stroke-linecap="round"></path>
+                </svg>
+              </div>
             </div>
+            <span class="exec-profile__badge">Leadership</span>
           </div>
-          <h3 id="ceoName">BAWO MADAMEDON</h3>
-          <p class="ceo-card__title" id="ceoTitle">CEO, SHEREBOY TECH LTD</p>
-          <p id="ceoBio">Leading SHEREBOY TECH LTD's mission to design and ship modern, reliable software for
-            businesses across Nigeria and beyond.</p>
+          <div class="exec-profile__body">
+            <p class="exec-profile__eyebrow">About the founder</p>
+            <h3 id="ceoName">BAWO MADAMEDON</h3>
+            <p class="exec-profile__title" id="ceoTitle">CEO, SHEREBOY TECH LTD</p>
+            <p id="ceoBio" class="exec-profile__bio">Leading SHEREBOY TECH LTD's mission to design and ship modern,
+              reliable software for businesses across Nigeria and beyond.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="pillars">
+        <div class="pillar-card reveal reveal-d1">
+          <div class="pillar-card__icon" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M12 3l8 4v5c0 4.8-3.4 8.6-8 9.5C7.4 20.6 4 16.8 4 12V7l8-4z" stroke-linejoin="round"></path>
+              <path d="M9 12l2 2 4-4.5" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+          </div>
+          <h4>Mission</h4>
+          <p id="aboutMission">—</p>
+        </div>
+        <div class="pillar-card reveal reveal-d2">
+          <div class="pillar-card__icon" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path
+                d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"
+                stroke-linejoin="round"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </div>
+          <h4>Vision</h4>
+          <p id="aboutVision">—</p>
+        </div>
+        <div class="pillar-card reveal reveal-d3">
+          <div class="pillar-card__icon" aria-hidden="true">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M4 12l5 5L20 6" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+          </div>
+          <h4>How we work</h4>
+          <p>Security-first engineering, transparent communication, and dependable delivery on every
+            engagement.</p>
+        </div>
+      </div>
+
+      <div class="company-meta reveal">
+        <div class="company-meta__item">
+          <span>CAC Registration</span>
+          <strong id="aboutCac">Registration in progress</strong>
+        </div>
+        <div class="company-meta__item">
+          <span>Location</span>
+          <strong id="aboutAddress">Nigeria</strong>
+        </div>
+        <div class="company-meta__item">
+          <span>Email</span>
+          <strong id="aboutEmail">shereboyofficial1515@gmail.com</strong>
         </div>
       </div>
     </section>
