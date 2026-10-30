@@ -1,368 +1,814 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-NG">
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SHEREBOY TECH LTD — Websites & Full-Stack Web Applications</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>SHEREBOY TECH LTD — Websites, Web Applications &amp; Business Software</title>
   <meta name="description"
-    content="SHEREBOY TECH LTD builds modern, responsive websites and full-stack web applications for businesses, organizations and individuals in Nigeria and beyond.">
-  <meta name="theme-color" content="#0B1220">
+    content="SHEREBOY TECH LTD is a registered Nigerian software company that designs and develops modern websites, web applications and business systems that help businesses operate, grow and compete.">
+  <meta name="theme-color" content="#060c1a">
+  <meta name="color-scheme" content="dark">
+  <link rel="canonical" href="https://shereboytechltd.site/">
 
   <!-- Open Graph -->
-  <meta property="og:title" content="SHEREBOY TECH LTD — Websites & Full-Stack Web Applications">
+  <meta property="og:site_name" content="SHEREBOY TECH LTD">
+  <meta property="og:title" content="SHEREBOY TECH LTD — Engineering Digital Solutions That Move Businesses Forward">
   <meta property="og:description"
-    content="We design and build modern websites and full-stack web applications for businesses.">
+    content="Modern websites, powerful web applications and intelligent business systems — designed and built by SHEREBOY TECH LTD.">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="/assets/og-cover.jpg">
+  <meta property="og:url" content="https://shereboytechltd.site/">
+  <meta property="og:image" content="https://shereboytechltd.site/assets/og-cover.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="SHEREBOY TECH LTD logo">
+  <meta property="og:locale" content="en_NG">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="SHEREBOY TECH LTD">
-  <meta name="twitter:description" content="Modern websites and full-stack web applications, built for business.">
+  <meta name="twitter:title" content="SHEREBOY TECH LTD — Engineering Digital Solutions">
+  <meta name="twitter:description" content="Modern websites, web applications and business systems, built for business.">
+  <meta name="twitter:image" content="https://shereboytechltd.site/assets/og-cover.jpg">
 
-  <link rel="canonical" href="/">
-  <link rel="icon" href="/assets/favicon.ico">
+  <link rel="icon" href="/assets/favicon.ico" sizes="any">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/boot.js"></script>
+  <script src="/js/app.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": "https://shereboytechltd.site/#organization",
+    "name": "SHEREBOY TECH LTD",
+    "legalName": "SHEREBOY TECH LTD",
+    "url": "https://shereboytechltd.site/",
+    "logo": "https://shereboytechltd.site/assets/images/shereboy-tech-logo-600.jpg",
+    "image": "https://shereboytechltd.site/assets/og-cover.jpg",
+    "description": "Nigerian software company designing and developing websites, web applications and business systems.",
+    "email": "support@shereboytechltd.site",
+    "telephone": "+2347010288040",
+    "foundingDate": "2026-02-24",
+    "identifier": { "@type": "PropertyValue", "propertyID": "CAC RC", "value": "9364652" },
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "No. 4, Koko Street, Jeddo",
+      "addressLocality": "Warri",
+      "addressRegion": "Delta State",
+      "addressCountry": "NG"
+    },
+    "founder": { "@type": "Person", "name": "Bawo Madamedon", "jobTitle": "Chief Executive Officer" },
+    "sameAs": [
+      "https://www.instagram.com/shereboy_tech011",
+      "https://www.tiktok.com/@shereboy",
+      "https://youtube.com/@shereboytech1379"
+    ],
+    "contactPoint": [{
+      "@type": "ContactPoint",
+      "contactType": "sales",
+      "telephone": "+2347010288040",
+      "email": "support@shereboytechltd.site",
+      "areaServed": "NG",
+      "availableLanguage": "English"
+    }]
+  }
+  </script>
 </head>
 
 <body>
-  <!-- ============ PRELOADER (site-name animation, not a spinner) ============ -->
-  <div class="preloader" id="preloader" role="status" aria-live="polite" aria-label="Loading SHEREBOY TECH LTD">
-    <div class="preloader__inner">
-      <p class="preloader__prompt" aria-hidden="true">booting studio</p>
-      <h1 class="preloader__title" aria-hidden="true">
-        <span class="pl">S</span><span class="pl">H</span><span class="pl">E</span><span class="pl">R</span><span
-          class="pl">E</span><span class="pl">B</span><span class="pl">O</span><span class="pl">Y</span><span
-          class="pl pl-space"> </span><span class="pl">T</span><span class="pl">E</span><span class="pl">C</span><span
-          class="pl">H</span><span class="pl pl-space"> </span><span class="pl">L</span><span class="pl">T</span><span
-          class="pl">D</span>
-      </h1>
-      <div class="preloader__bar" aria-hidden="true">
-        <div class="preloader__barFill"></div>
-      </div>
-    </div>
-  </div>
+  <!-- ============ ICON SPRITE ============ -->
+  <svg width="0" height="0" class="sprite" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-arrow-up-right" viewBox="0 0 24 24"><path d="M7 17L17 7M8 7h9v9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4L10 14M19 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-web" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9S14.6 18.4 12 21c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/></g></symbol>
+      <symbol id="i-app" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 8.5h18M7 13h4M7 16.5h7" stroke-linecap="round"/><circle cx="16.5" cy="14.5" r="2"/></g></symbol>
+      <symbol id="i-code" viewBox="0 0 24 24"><path d="M8.5 7.5L4 12l4.5 4.5M15.5 7.5L20 12l-4.5 4.5M13.5 5l-3 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-system" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v6.5c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8V5.5M4.5 12v6.5c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8V12"/></g></symbol>
+      <symbol id="i-mobile" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3" stroke-linecap="round"/></g></symbol>
+      <symbol id="i-api" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7V3.5M15 7V3.5M7 7h10v4a5 5 0 0 1-10 0V7zM12 16v4.5"/></g></symbol>
+      <symbol id="i-support" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.1L3.5 17.2a1.8 1.8 0 0 0 2.6 2.6l5.8-5.8a4 4 0 0 0 5.1-5.4l-2.4 2.4-2.3-.4-.4-2.3 2.8-2z"/></g></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l7.5 3v5.5c0 4.7-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.8-7.5-9.5V6L12 3z"/><path d="M9 12l2 2 4-4.5" stroke-linecap="round"/></g></symbol>
+      <symbol id="i-layers" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></g></symbol>
+      <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3zM18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+      <symbol id="i-cart" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2.5l2.2 11h10.6L20.5 8H6.6"/><circle cx="9.5" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/></g></symbol>
+      <symbol id="i-desktop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="2.5" y="4" width="19" height="12.5" rx="2"/><path d="M8.5 20.5h7M12 16.5v4"/></g></symbol>
+      <symbol id="i-tablet" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4.5" y="2.5" width="15" height="19" rx="2.2"/><path d="M11 18.5h2" stroke-linecap="round"/></g></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-shrink" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-mail" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.2"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5" stroke-linecap="round"/></g></symbol>
+      <symbol id="i-whatsapp" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 20l1.2-4.1A8.5 8.5 0 1 1 8.4 19L4 20z"/><path d="M9 8.6c.2-.5.6-.6.9-.6h.5c.2 0 .4.1.5.4l.7 1.6c.1.2 0 .5-.1.6l-.5.6c.6 1.1 1.5 2 2.6 2.6l.6-.5c.2-.1.4-.2.6-.1l1.6.7c.3.1.4.3.4.5v.5c0 .3-.1.7-.6.9-1.5.7-3.5-.2-5.1-1.8S8.3 10.1 9 8.6z" stroke-width="1.3"/></g></symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24"><path d="M5.5 3.5h3l1.5 4-2 1.3a10.5 10.5 0 0 0 5.2 5.2l1.3-2 4 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 3.5 5.7a2 2 0 0 1 2-2.2z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21s-6.5-5.8-6.5-11a6.5 6.5 0 0 1 13 0c0 5.2-6.5 11-6.5 11z" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.4"/></g></symbol>
+      <symbol id="i-building" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 20.5V5a1.5 1.5 0 0 1 1.5-1.5h8A1.5 1.5 0 0 1 15 5v15.5M15 9.5h3.5A1.5 1.5 0 0 1 20 11v9.5M2.5 20.5h19"/><path d="M8 7.5h3M8 11h3M8 14.5h3" stroke-linecap="round"/></g></symbol>
+      <symbol id="i-badge" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><circle cx="12" cy="9" r="5.5"/><path d="M8.5 13.3L7 21l5-2.6 5 2.6-1.5-7.7"/><path d="M9.8 9l1.5 1.5L14.4 7.6" stroke-linecap="round"/></g></symbol>
+      <symbol id="i-doc" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M6 2.5h8l4.5 4.5v13a1.5 1.5 0 0 1-1.5 1.5H6A1.5 1.5 0 0 1 4.5 20V4A1.5 1.5 0 0 1 6 2.5z"/><path d="M13.5 2.5V7.5h5M8 12h8M8 15.5h8M8 8.5h3" stroke-linecap="round"/></g></symbol>
+      <symbol id="i-zoom" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8M10.5 7.5v6M7.5 10.5h6"/></g></symbol>
+      <symbol id="i-user" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 20.5c0-4.4 3.6-7.5 8-7.5s8 3.1 8 7.5" stroke-linecap="round"/></g></symbol>
+      <symbol id="i-chat" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4.5 4v-4h0A1.5 1.5 0 0 1 4 14.5v-9z"/><path d="M8.5 10h.01M12 10h.01M15.5 10h.01" stroke-width="2.4" stroke-linecap="round"/></g></symbol>
+      <symbol id="i-send" viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5L4 12z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" stroke-linejoin="round"/><circle cx="12" cy="12" r="3"/></g></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3" stroke-linecap="round"/></g></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></g></symbol>
+      <symbol id="i-compass" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5 5-2z"/></g></symbol>
+      <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 0 1 3 3L8 19l-4 1zM14.5 6.5l3 3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-rocket" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 2.5c3 1.3 5 4.4 5 8.3 0 2-.6 4-1.7 5.7L12 20l-3.3-3.5A9.8 9.8 0 0 1 7 10.8c0-3.9 2-7 5-8.3z"/><circle cx="12" cy="10" r="1.8"/><path d="M8.6 15.8L6 18.5M15.4 15.8l2.6 2.7" stroke-linecap="round"/></g></symbol>
+      <symbol id="i-warning" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3.5l9.5 16.5h-19L12 3.5z" stroke-linejoin="round"/><path d="M12 10v4.5" stroke-linecap="round"/><circle cx="12" cy="17.4" r=".6" fill="currentColor"/></g></symbol>
+      <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.5l2.9 6.2 6.8.7-5.1 4.6 1.5 6.7L12 17.4l-6.1 3.3 1.5-6.7-5.1-4.6 6.8-.7L12 2.5z" fill="currentColor"/></symbol>
+      <symbol id="i-image" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16.5l-5.2-5.2a2 2 0 0 0-2.8 0L5 19.5" stroke-linecap="round" stroke-linejoin="round"/></g></symbol>
+      <symbol id="i-github" viewBox="0 0 24 24"><path d="M12 2.5a9.5 9.5 0 0 0-3 18.5c.5.1.7-.2.7-.5v-1.7c-2.7.6-3.2-1.2-3.2-1.2-.4-1.1-1.1-1.4-1.1-1.4-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.1-.2-4.4-1.1-4.4-4.7 0-1 .4-1.9 1-2.6-.1-.2-.4-1.2.1-2.6 0 0 .8-.3 2.6 1a9 9 0 0 1 4.7 0c1.8-1.3 2.6-1 2.6-1 .5 1.4.2 2.4.1 2.6.6.7 1 1.6 1 2.6 0 3.7-2.3 4.5-4.4 4.7.3.3.6.9.6 1.8v2.6c0 .3.2.6.7.5A9.5 9.5 0 0 0 12 2.5z" fill="currentColor"/></symbol>
+      <symbol id="i-instagram" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".8" fill="currentColor"/></g></symbol>
+      <symbol id="i-tiktok" viewBox="0 0 24 24"><path d="M14 3v10.2a2.8 2.8 0 1 1-2-2.7V8.4a5 5 0 1 0 4 4.9V8.6a6.6 6.6 0 0 0 4 1.4V7.6a4 4 0 0 1-3.6-2.2A4 4 0 0 1 16 3h-2z" fill="currentColor"/></symbol>
+      <symbol id="i-youtube" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="M10.5 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none"/></g></symbol>
+    </defs>
+  </svg>
 
-  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <div class="toast-stack" id="toastStack" role="status" aria-live="polite"></div>
 
-
-  <!-- ============ NAV ============ -->
+  <!-- ============ NAVIGATION ============ -->
   <header class="nav" id="nav">
-    <div class="nav__inner">
-      <a href="/" class="nav__brand" id="navBrand">
-        <img src="" alt="SHEREBOY TECH LTD logo" class="nav__logo" id="navLogo" hidden>
-        <span id="navBrandText">Shereboy<span class="nav__accent">Tech</span></span>
+    <div class="nav__inner container">
+      <a href="/" class="nav__brand" aria-label="SHEREBOY TECH LTD — home">
+        <img src="/assets/images/shereboy-tech-mark.webp" alt="" class="nav__mark" width="90" height="32">
+        <span class="nav__wordmark">SHEREBOY <span>TECH LTD</span></span>
       </a>
-      <nav class="nav__links" id="navLinks">
-        <a href="#services">Services</a>
-        <a href="#projects">Projects</a>
-        <a href="#reviews">Reviews</a>
-        <a href="#blog">Blog</a>
-        <a href="#about">About</a>
-        <a href="#contact" class="nav__cta">Contact us</a>
+      <nav class="nav__links" aria-label="Main">
+        <a href="/#top" data-nav="top">Home</a>
+        <a href="/#services" data-nav="services">Services</a>
+        <a href="/#work" data-nav="work">Our Work</a>
+        <a href="/#about" data-nav="about">About Us</a>
+        <a href="/#insights" data-nav="insights" id="navInsights">Insights</a>
+        <a href="/#contact" data-nav="contact">Contact</a>
       </nav>
-      <button class="nav__toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
+      <a href="/#contact" class="btn btn--primary btn--sm nav__cta" data-start-project>Start a Project</a>
+      <button class="nav__toggle" id="navToggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="navDrawer">
         <span></span><span></span><span></span>
       </button>
     </div>
   </header>
 
-  <main>
-
-    <!-- ============ HERO ============ -->
-    <section class="hero" id="hero">
-      <div class="hero__media" aria-hidden="true"></div>
-      <div class="hero__inner">
-        <p class="eyebrow reveal">whoami</p>
-        <h1 class="hero__headline reveal reveal-d1">
-          We build <span class="hl">software</span><br>
-          that businesses<br>
-          <span class="type-cursor" id="heroType">run on</span>
-        </h1>
-        <p class="hero__sub reveal reveal-d2">
-          SHEREBOY TECH LTD is a registered Nigerian technology studio. We design, build and ship
-          modern websites and full-stack web applications — from first commit to production.
-        </p>
-        <div class="hero__actions reveal reveal-d3">
-          <a href="#projects" class="btn btn--primary">View our projects</a>
-          <a href="#contact" class="btn btn--ghost">Contact us</a>
+  <!-- Mobile drawer -->
+  <div class="drawer" id="navDrawer" aria-hidden="true">
+    <div class="drawer__backdrop" data-close-drawer></div>
+    <div class="drawer__panel" role="dialog" aria-modal="true" aria-label="Menu">
+      <div class="drawer__head">
+        <span class="nav__wordmark">SHEREBOY <span>TECH LTD</span></span>
+        <button class="icon-btn" type="button" data-close-drawer aria-label="Close menu"><svg class="icon"><use href="#i-close"/></svg></button>
+      </div>
+      <nav class="drawer__links" aria-label="Mobile">
+        <a href="/#top"><span>01</span>Home</a>
+        <a href="/#services"><span>02</span>Services</a>
+        <a href="/#work"><span>03</span>Our Work</a>
+        <a href="/#about"><span>04</span>About Us</a>
+        <a href="/#insights" id="drawerInsights"><span>05</span>Insights</a>
+        <a href="/#contact"><span>06</span>Contact</a>
+      </nav>
+      <div class="drawer__foot">
+        <a href="/#contact" class="btn btn--primary btn--block" data-start-project>Start a Project <svg class="icon"><use href="#i-arrow"/></svg></a>
+        <div class="drawer__contact">
+          <a href="https://wa.me/2348124529757" target="_blank" rel="noopener" data-company-link="whatsapp"><svg class="icon"><use href="#i-whatsapp"/></svg>WhatsApp</a>
+          <a href="tel:+2347010288040" data-company-link="phone"><svg class="icon"><use href="#i-phone"/></svg>Call us</a>
         </div>
       </div>
-      <div class="hero__badge reveal reveal-d4" aria-hidden="true">
-        <div class="hero__badgeRow"><span class="hero__badgeDot"></span>Now shipping in production</div>
-        <div class="hero__badgeStack">
-          <span>Node.js</span><span class="hero__badgeSep">/</span><span>Express</span><span
-            class="hero__badgeSep">/</span><span>Supabase</span>
-        </div>
+    </div>
+  </div>
+
+  <main id="main">
+
+    <!-- ============ 1. HERO ============ -->
+    <section class="hero" id="top" aria-labelledby="heroTitle">
+      <div class="hero__bg" aria-hidden="true">
+        <div class="hero__grid"></div>
+        <div class="hero__glow hero__glow--a"></div>
+        <div class="hero__glow hero__glow--b"></div>
       </div>
-      <a href="#services" class="hero__scrollHint" aria-label="Scroll to services">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-          aria-hidden="true">
-          <path d="M12 4v15M6 13l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"></path>
-        </svg>
-      </a>
-    </section>
-
-    <!-- ============ SERVICES ============ -->
-    <section class="section section--light" id="services">
-      <p class="eyebrow eyebrow--dark reveal">services --list</p>
-      <h2 class="section__title reveal reveal-d1">What we build</h2>
-      <div class="grid grid--services" id="servicesGrid">
-        <p class="empty-state">Loading services…</p>
-      </div>
-    </section>
-
-    <!-- ============ FEATURED PROJECTS ============ -->
-    <section class="section" id="projects">
-      <p class="eyebrow reveal">ls projects featured</p>
-      <h2 class="section__title section__title--onDark reveal reveal-d1">Recent work</h2>
-      <div class="grid grid--projects" id="projectsGrid">
-        <p class="empty-state empty-state--onDark">Loading projects…</p>
-      </div>
-      <div class="section__footer">
-        <a href="#projects" class="btn btn--outline" id="viewAllProjects">View all projects</a>
-      </div>
-    </section>
-
-    <!-- ============ REVIEWS ============ -->
-    <section class="section section--light" id="reviews">
-      <p class="eyebrow eyebrow--dark reveal">cat reviews.json</p>
-      <h2 class="section__title reveal reveal-d1">What clients say</h2>
-      <div class="grid grid--reviews" id="reviewsGrid">
-        <p class="empty-state">Loading reviews…</p>
-      </div>
-    </section>
-
-    <!-- ============ TECH STACK ============ -->
-    <section class="section section--stack">
-      <p class="eyebrow reveal">node -e "console.log(stack)"</p>
-      <h2 class="section__title section__title--onDark reveal reveal-d1">Our stack</h2>
-      <div class="badges reveal reveal-d2">
-        <span class="badge">JavaScript</span>
-        <span class="badge">Node.js</span>
-        <span class="badge">Express</span>
-        <span class="badge">Supabase</span>
-        <span class="badge">PostgreSQL</span>
-        <span class="badge">REST APIs</span>
-        <span class="badge">HTML5</span>
-        <span class="badge">CSS3</span>
-        <span class="badge">Gemini AI</span>
-        <span class="badge">Render</span>
-      </div>
-    </section>
-
-    <!-- ============ BLOG ============ -->
-    <section class="section section--light" id="blog">
-      <p class="eyebrow eyebrow--dark reveal">latest news</p>
-      <h2 class="section__title reveal reveal-d1">From the blog</h2>
-      <div class="grid grid--blog" id="blogGrid">
-        <p class="empty-state">Loading posts…</p>
-      </div>
-    </section>
-
-    <!-- ============ AI ASSISTANT ============ -->
-    <section class="section section--ai" id="ai-assistant">
-      <p class="eyebrow reveal">sheroboy-ai start</p>
-      <h2 class="section__title section__title--onDark reveal reveal-d1">Ask the SHEREBOY AI Assistant</h2>
-      <p class="section__lede reveal reveal-d2">Questions about our services, our stack, or how to get started? Ask
-        below.</p>
-
-      <div class="ai-chat reveal reveal-d3" id="aiChat">
-        <div class="ai-chat__log" id="aiChatLog">
-          <div class="ai-msg ai-msg--bot">Hi, I'm the SHEREBOY AI Assistant. Ask me anything about our services, our
-            stack, or how to work with us.</div>
-        </div>
-        <form class="ai-chat__form" id="aiChatForm">
-          <textarea id="aiChatInput" maxlength="800" rows="1" placeholder="Ask a question… (Enter to send, Shift+Enter for a new line)"
-            aria-label="Ask the SHEREBOY AI Assistant" autocomplete="off" required></textarea>
-          <button type="submit" class="btn btn--primary">Send</button>
-        </form>
-      </div>
-    </section>
-
-    <!-- ============ ABOUT / CEO ============ -->
-    <section class="section section--light section--about" id="about">
-      <p class="eyebrow eyebrow--dark reveal">about the company</p>
-      <h2 class="section__title about__headline reveal reveal-d1">Building digital products that move businesses
-        forward.</h2>
-
-      <div class="about-grid">
-        <div class="about-copy reveal reveal-d2" id="aboutCopy">
-          <p class="about-copy__label">Our story</p>
-          <p id="aboutDescription">Loading…</p>
+      <div class="container hero__inner">
+        <div class="hero__copy">
+          <p class="eyebrow hero__in hero__in--1"><span class="eyebrow__dot"></span>Registered software engineering company · Nigeria</p>
+          <h1 class="hero__title hero__in hero__in--2" id="heroTitle">
+            Engineering digital solutions that <span class="text-accent">move businesses forward.</span>
+          </h1>
+          <p class="hero__lede hero__in hero__in--3">
+            SHEREBOY TECH LTD designs and develops modern websites, powerful web applications and intelligent
+            business systems that help businesses operate, grow and compete.
+          </p>
+          <div class="hero__actions hero__in hero__in--4">
+            <a href="/#work" class="btn btn--primary btn--lg">Explore Our Work <svg class="icon"><use href="#i-arrow"/></svg></a>
+            <a href="/#contact" class="btn btn--ghost btn--lg" data-start-project>Start a Project</a>
+          </div>
+          <ul class="hero__assurances hero__in hero__in--5">
+            <li><svg class="icon"><use href="#i-badge"/></svg><span>CAC registered<strong id="heroRc"> · RC 9364652</strong></span></li>
+            <li><svg class="icon"><use href="#i-shield"/></svg><span>Security-conscious engineering</span></li>
+            <li><svg class="icon"><use href="#i-mobile"/></svg><span>Mobile-first by default</span></li>
+          </ul>
         </div>
 
-        <div class="exec-profile reveal reveal-d3">
-          <div class="exec-profile__frame">
-            <div class="exec-profile__portrait media" id="ceoPhoto">
-              <div class="media__fallback" aria-hidden="true">
-                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
-                  <circle cx="12" cy="8" r="4"></circle>
-                  <path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" stroke-linecap="round"></path>
-                </svg>
+        <!-- Visual composition: layered product windows (illustrative UI, no data) -->
+        <div class="hero__visual" aria-hidden="true">
+          <div class="hv-window hv-window--main">
+            <div class="hv-window__bar"><i></i><i></i><i></i><span class="hv-url">your-business.app/dashboard</span></div>
+            <div class="hv-app">
+              <aside class="hv-side"><b></b><span></span><span class="is-on"></span><span></span><span></span><span></span></aside>
+              <div class="hv-content">
+                <div class="hv-row"><div class="hv-kpi"><em></em><strong></strong></div><div class="hv-kpi"><em></em><strong></strong></div><div class="hv-kpi hv-kpi--accent"><em></em><strong></strong></div></div>
+                <div class="hv-chart">
+                  <svg viewBox="0 0 300 110" preserveAspectRatio="none"><defs><linearGradient id="hvFill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#2f7bff" stop-opacity=".45"/><stop offset="1" stop-color="#2f7bff" stop-opacity="0"/></linearGradient></defs><path class="hv-chart__area" d="M0 90 C30 80 45 60 75 64 S120 40 150 46 S200 20 225 28 S270 12 300 8 V110 H0Z" fill="url(#hvFill)"/><path class="hv-chart__line" d="M0 90 C30 80 45 60 75 64 S120 40 150 46 S200 20 225 28 S270 12 300 8" fill="none" stroke="#5aa2ff" stroke-width="2.4"/></svg>
+                </div>
+                <div class="hv-table"><span></span><span></span><span></span><span></span></div>
               </div>
             </div>
-            <span class="exec-profile__badge">Leadership</span>
           </div>
-          <div class="exec-profile__body">
-            <p class="exec-profile__eyebrow">About the founder</p>
-            <h3 id="ceoName">BAWO MADAMEDON</h3>
-            <p class="exec-profile__title" id="ceoTitle">CEO, SHEREBOY TECH LTD</p>
-            <p id="ceoBio" class="exec-profile__bio">Leading SHEREBOY TECH LTD's mission to design and ship modern,
-              reliable software for businesses across Nigeria and beyond.</p>
+          <div class="hv-window hv-window--code">
+            <div class="hv-window__bar"><i></i><i></i><i></i><span class="hv-url">server.js</span></div>
+            <pre class="hv-code"><code><span class="k">const</span> app = <span class="f">express</span>();
+app.<span class="f">use</span>(<span class="f">helmet</span>());
+app.<span class="f">get</span>(<span class="s">'/api/orders'</span>, <span class="f">auth</span>,
+  <span class="k">async</span> (req, res) =&gt; {
+  <span class="k">const</span> { data } = <span class="k">await</span> db
+    .<span class="f">from</span>(<span class="s">'orders'</span>).<span class="f">select</span>();
+  res.<span class="f">json</span>(data);
+});</code></pre>
+          </div>
+          <div class="hv-phone">
+            <div class="hv-phone__notch"></div>
+            <div class="hv-phone__screen"><b></b><span></span><span></span><i></i><i></i><i></i></div>
+          </div>
+          <div class="hv-chip hv-chip--deploy"><span class="hv-pulse"></span>Deployed to production</div>
+          <div class="hv-chip hv-chip--secure"><svg class="icon"><use href="#i-lock"/></svg>HTTPS · Auth · Backups</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 2. TRUSTED COMPANY INTRODUCTION ============ -->
+    <section class="trust" aria-label="Company facts">
+      <div class="container trust__inner">
+        <div class="trust__item">
+          <strong class="trust__value"><span data-count id="statProjects">—</span></strong>
+          <span class="trust__label">Projects live on our portfolio</span>
+        </div>
+        <div class="trust__item">
+          <strong class="trust__value"><span data-count id="statServices">—</span></strong>
+          <span class="trust__label">Core services offered</span>
+        </div>
+        <div class="trust__item">
+          <strong class="trust__value trust__value--text" id="statRc">RC 9364652</strong>
+          <span class="trust__label">Registered with the Corporate Affairs Commission</span>
+        </div>
+        <div class="trust__item">
+          <strong class="trust__value trust__value--text" id="statLocation">Warri, Delta State</strong>
+          <span class="trust__label">Headquarters · serving clients across Nigeria</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 3. WHAT WE DO ============ -->
+    <section class="section section--services" id="services" aria-labelledby="servicesTitle">
+      <div class="container services">
+        <div class="services__intro">
+          <p class="eyebrow reveal">What We Build</p>
+          <h2 class="section-title reveal" id="servicesTitle">Software that solves real business problems.</h2>
+          <p class="section-lede reveal">From your first website to the systems that run your operations, we plan, design, build and
+            support every part of your digital presence.</p>
+          <a href="/#contact" class="btn btn--ghost reveal" data-start-project>Discuss your project <svg class="icon"><use href="#i-arrow"/></svg></a>
+        </div>
+        <div class="services__list" id="servicesList" aria-live="polite">
+          <div class="skeleton skeleton--service"></div>
+          <div class="skeleton skeleton--service"></div>
+          <div class="skeleton skeleton--service"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 4. OUR WORK ============ -->
+    <section class="section section--work" id="work" aria-labelledby="workTitle">
+      <div class="container">
+        <div class="section-head section-head--split">
+          <div>
+            <p class="eyebrow reveal">Our Projects</p>
+            <h2 class="section-title reveal" id="workTitle">Work we've designed, built and launched.</h2>
+          </div>
+          <p class="section-lede reveal">Open any project to read about it, or use <strong>Live Preview</strong> to explore the real website
+            without leaving this page.</p>
+        </div>
+        <div class="filters" id="workFilters" role="tablist" aria-label="Filter projects by category" hidden></div>
+        <div class="work-grid" id="workGrid" aria-live="polite">
+          <div class="skeleton skeleton--project skeleton--wide"></div>
+          <div class="skeleton skeleton--project"></div>
+          <div class="skeleton skeleton--project"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 5. WHY BUSINESSES CHOOSE US ============ -->
+    <section class="section section--why" aria-labelledby="whyTitle">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow reveal">Why Businesses Choose Us</p>
+          <h2 class="section-title reveal" id="whyTitle">A dependable technology partner, not just a developer.</h2>
+        </div>
+        <div class="why-grid">
+          <article class="why-card why-card--lead reveal">
+            <span class="why-card__icon"><svg class="icon"><use href="#i-shield"/></svg></span>
+            <h3>Security is built in from day one</h3>
+            <p>Our founder trained in Intelligence and Security Studies, and it shows in how we work: protected admin areas,
+              encrypted passwords, validated inputs and secure hosting are standard — not optional extras.</p>
+          </article>
+          <article class="why-card reveal">
+            <span class="why-card__icon"><svg class="icon"><use href="#i-badge"/></svg></span>
+            <h3>A registered, accountable company</h3>
+            <p>SHEREBOY TECH LTD is incorporated with the Corporate Affairs Commission. You work with a real business with a
+              real address.</p>
+          </article>
+          <article class="why-card reveal">
+            <span class="why-card__icon"><svg class="icon"><use href="#i-mobile"/></svg></span>
+            <h3>Designed for your customers' phones</h3>
+            <p>Most of your visitors arrive on mobile. Every layout we build is designed and tested for small screens first.</p>
+          </article>
+          <article class="why-card reveal">
+            <span class="why-card__icon"><svg class="icon"><use href="#i-chat"/></svg></span>
+            <h3>Plain-English communication</h3>
+            <p>No jargon. You always know what is being built, why, and what happens next.</p>
+          </article>
+          <article class="why-card reveal">
+            <span class="why-card__icon"><svg class="icon"><use href="#i-support"/></svg></span>
+            <h3>Support after launch</h3>
+            <p>Launch day is the beginning. We stay available to maintain, update and improve what we build for you.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 6. PROCESS ============ -->
+    <section class="section section--process" aria-labelledby="processTitle">
+      <div class="container">
+        <div class="section-head section-head--split">
+          <div>
+            <p class="eyebrow reveal">How We Work</p>
+            <h2 class="section-title reveal" id="processTitle">A clear process from idea to launch.</h2>
+          </div>
+          <p class="section-lede reveal">Every project follows the same proven path, so you always know where things stand.</p>
+        </div>
+        <ol class="process">
+          <li class="process__step reveal">
+            <span class="process__num">01</span>
+            <span class="process__icon"><svg class="icon"><use href="#i-compass"/></svg></span>
+            <h3>Discover</h3>
+            <p>We learn about your business, your customers and the problem you need solved.</p>
+          </li>
+          <li class="process__step reveal">
+            <span class="process__num">02</span>
+            <span class="process__icon"><svg class="icon"><use href="#i-pen"/></svg></span>
+            <h3>Plan &amp; design</h3>
+            <p>We agree the scope, then design how it will look and work before any building starts.</p>
+          </li>
+          <li class="process__step reveal">
+            <span class="process__num">03</span>
+            <span class="process__icon"><svg class="icon"><use href="#i-code"/></svg></span>
+            <h3>Build &amp; test</h3>
+            <p>We develop your solution and test it on real devices, sharing progress along the way.</p>
+          </li>
+          <li class="process__step reveal">
+            <span class="process__num">04</span>
+            <span class="process__icon"><svg class="icon"><use href="#i-rocket"/></svg></span>
+            <h3>Launch</h3>
+            <p>We put it live on secure hosting and make sure everything works as it should.</p>
+          </li>
+          <li class="process__step reveal">
+            <span class="process__num">05</span>
+            <span class="process__icon"><svg class="icon"><use href="#i-support"/></svg></span>
+            <h3>Support &amp; grow</h3>
+            <p>We maintain, update and improve your product as your business grows.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ============ 7. ABOUT US ============ -->
+    <section class="section section--about" id="about" aria-labelledby="aboutTitle">
+      <div class="container about">
+        <div class="about__media reveal">
+          <figure class="founder-card">
+            <div class="founder-card__frame">
+              <div class="founder-card__img media" id="founderMedia">
+                <div class="media__fallback"><svg class="icon"><use href="#i-user"/></svg></div>
+                <img class="media__img" id="founderImg" alt="Bawo Madamedon, Founder and CEO of SHEREBOY TECH LTD"
+                  width="864" height="1080" decoding="async" hidden>
+              </div>
+              <span class="founder-card__corner founder-card__corner--tl" aria-hidden="true"></span>
+              <span class="founder-card__corner founder-card__corner--br" aria-hidden="true"></span>
+            </div>
+            <figcaption class="founder-card__caption">
+              <span class="founder-card__role" id="ceoTitle">CEO, SHEREBOY TECH LTD</span>
+              <strong id="ceoName">Bawo Madamedon</strong>
+              <span class="founder-card__tag">Founder</span>
+            </figcaption>
+          </figure>
+        </div>
+
+        <div class="about__content">
+          <p class="eyebrow reveal">About Our Company</p>
+          <h2 class="section-title reveal" id="aboutTitle">Building the technology Nigerian businesses grow on.</h2>
+          <div class="about__intro reveal" id="aboutDescription">
+            <p>SHEREBOY TECH LTD is a Nigerian technology company that designs and develops websites, web applications and
+              digital solutions for businesses, brands and individuals.</p>
+          </div>
+
+          <div class="mv-grid">
+            <div class="mv-card reveal">
+              <span class="mv-card__label">Our mission</span>
+              <p id="aboutMission">To deliver innovative and secure digital solutions that empower businesses and individuals to grow.</p>
+            </div>
+            <div class="mv-card reveal">
+              <span class="mv-card__label">Our vision</span>
+              <p id="aboutVision">To become a leading technology and digital solutions company in Africa.</p>
+            </div>
+          </div>
+
+          <div class="values reveal">
+            <h3 class="sub-title">Our core values</h3>
+            <ul class="values__list" id="coreValues">
+              <li>Professionalism</li>
+              <li>Creativity</li>
+              <li>Reliability</li>
+              <li>Security</li>
+            </ul>
+          </div>
+
+          <div class="founder-intro reveal">
+            <h3 class="sub-title">Meet the founder</h3>
+            <div class="founder-intro__text" id="ceoBio">
+              <p>Bawo Madamedon founded SHEREBOY TECH LTD to help businesses establish a strong, secure and professional digital presence.</p>
+            </div>
+            <button type="button" class="link-btn" id="ceoBioToggle" hidden aria-expanded="false" aria-controls="ceoBio">Read full profile <svg class="icon"><use href="#i-chevron"/></svg></button>
           </div>
         </div>
       </div>
 
-      <div class="pillars">
-        <div class="pillar-card reveal reveal-d1">
-          <div class="pillar-card__icon" aria-hidden="true">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-              <path d="M12 3l8 4v5c0 4.8-3.4 8.6-8 9.5C7.4 20.6 4 16.8 4 12V7l8-4z" stroke-linejoin="round"></path>
-              <path d="M9 12l2 2 4-4.5" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
+      <!-- Registration -->
+      <div class="container">
+        <div class="registration reveal" id="registration">
+          <div class="registration__info">
+            <p class="eyebrow">Company Registration</p>
+            <h3 class="registration__title">Officially incorporated in Nigeria.</h3>
+            <dl class="registration__facts">
+              <div><dt>Registered name</dt><dd id="regName">SHEREBOY TECH LTD</dd></div>
+              <div><dt>RC number</dt><dd id="regNumber">9364652</dd></div>
+              <div><dt>Registered with</dt><dd>Corporate Affairs Commission (CAC)</dd></div>
+              <div><dt>Address</dt><dd id="regAddress">No. 4, Koko Street, Jeddo, Warri, Delta State, Nigeria</dd></div>
+            </dl>
           </div>
-          <h4>Mission</h4>
-          <p id="aboutMission">—</p>
-        </div>
-        <div class="pillar-card reveal reveal-d2">
-          <div class="pillar-card__icon" aria-hidden="true">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-              <path
-                d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"
-                stroke-linejoin="round"></path>
-              <circle cx="12" cy="12" r="3"></circle>
-            </svg>
+          <div class="certificate" id="certificateCard">
+            <button type="button" class="certificate__frame" id="certificateOpen" aria-label="View the full CAC Certificate of Incorporation">
+              <div class="certificate__paper media" id="certificateMedia">
+                <div class="media__fallback"><svg class="icon"><use href="#i-doc"/></svg><span>Loading certificate…</span></div>
+              </div>
+              <span class="certificate__hover"><svg class="icon"><use href="#i-zoom"/></svg>View full document</span>
+            </button>
+            <div class="certificate__meta">
+              <span><svg class="icon"><use href="#i-doc"/></svg>Certificate of Incorporation</span>
+              <button type="button" class="link-btn" id="certificateOpen2">View full document <svg class="icon"><use href="#i-arrow-up-right"/></svg></button>
+            </div>
           </div>
-          <h4>Vision</h4>
-          <p id="aboutVision">—</p>
-        </div>
-        <div class="pillar-card reveal reveal-d3">
-          <div class="pillar-card__icon" aria-hidden="true">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-              <path d="M4 12l5 5L20 6" stroke-linecap="round" stroke-linejoin="round"></path>
-            </svg>
-          </div>
-          <h4>How we work</h4>
-          <p>Security-first engineering, transparent communication, and dependable delivery on every
-            engagement.</p>
         </div>
       </div>
+    </section>
 
-      <div class="company-meta reveal">
-        <div class="company-meta__item">
-          <span>CAC Registration</span>
-          <strong id="aboutCac">Registration in progress</strong>
+    <!-- ============ 8. TECHNOLOGY ============ -->
+    <section class="section section--tech" aria-labelledby="techTitle">
+      <div class="container">
+        <div class="section-head section-head--split">
+          <div>
+            <p class="eyebrow reveal">Technologies We Use</p>
+            <h2 class="section-title reveal" id="techTitle">Proven, modern technology — chosen for reliability.</h2>
+          </div>
+          <p class="section-lede reveal">We use widely supported tools, so your product is fast, secure and easy to maintain for years to come.</p>
         </div>
-        <div class="company-meta__item">
-          <span>Location</span>
-          <strong id="aboutAddress">Nigeria</strong>
+        <div class="tech-grid">
+          <div class="tech-group reveal">
+            <span class="tech-group__icon"><svg class="icon"><use href="#i-desktop"/></svg></span>
+            <h3>What your customers see</h3>
+            <p>Fast, responsive interfaces that work on every device.</p>
+            <ul><li>HTML5</li><li>CSS3</li><li>JavaScript</li><li>Responsive design</li></ul>
+          </div>
+          <div class="tech-group reveal">
+            <span class="tech-group__icon"><svg class="icon"><use href="#i-layers"/></svg></span>
+            <h3>The engine behind it</h3>
+            <p>Secure servers that power your business logic.</p>
+            <ul><li>Node.js</li><li>Express</li><li>REST APIs</li><li>Authentication</li></ul>
+          </div>
+          <div class="tech-group reveal">
+            <span class="tech-group__icon"><svg class="icon"><use href="#i-system"/></svg></span>
+            <h3>Where your data lives</h3>
+            <p>Reliable databases and file storage for your records.</p>
+            <ul><li>PostgreSQL</li><li>Supabase</li><li>Cloud storage</li></ul>
+          </div>
+          <div class="tech-group reveal">
+            <span class="tech-group__icon"><svg class="icon"><use href="#i-spark"/></svg></span>
+            <h3>Intelligence &amp; hosting</h3>
+            <p>AI features and dependable cloud hosting.</p>
+            <ul><li>Google Gemini AI</li><li>Render</li><li>GitHub</li><li>HTTPS &amp; SSL</li></ul>
+          </div>
         </div>
-        <div class="company-meta__item">
-          <span>Email</span>
-          <strong id="aboutEmail">shereboyofficial1515@gmail.com</strong>
+      </div>
+    </section>
+
+    <!-- ============ CLIENT FEEDBACK (only shown when published reviews exist) ============ -->
+    <section class="section section--reviews" id="reviews" aria-labelledby="reviewsTitle" hidden>
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow reveal">Client Feedback</p>
+          <h2 class="section-title reveal" id="reviewsTitle">What our clients say.</h2>
+        </div>
+        <div class="reviews" id="reviewsList"></div>
+      </div>
+    </section>
+
+    <!-- ============ INSIGHTS (only shown when published posts exist) ============ -->
+    <section class="section section--insights" id="insights" aria-labelledby="insightsTitle" hidden>
+      <div class="container">
+        <div class="section-head section-head--split">
+          <div>
+            <p class="eyebrow reveal">Insights</p>
+            <h2 class="section-title reveal" id="insightsTitle">Ideas and advice for growing businesses.</h2>
+          </div>
+        </div>
+        <div class="insights" id="insightsList"></div>
+      </div>
+    </section>
+
+    <!-- ============ 9. FAQ ============ -->
+    <section class="section section--faq" aria-labelledby="faqTitle">
+      <div class="container faq">
+        <div class="faq__intro">
+          <p class="eyebrow reveal">Frequently Asked Questions</p>
+          <h2 class="section-title reveal" id="faqTitle">Answers before you ask.</h2>
+          <p class="section-lede reveal">Can't find what you're looking for? <a href="/#contact">Send us a message</a> and we'll reply personally.</p>
+        </div>
+        <div class="faq__list">
+          <details class="faq__item reveal">
+            <summary>How much does a website or application cost?<svg class="icon"><use href="#i-chevron"/></svg></summary>
+            <div class="faq__answer"><p>Every project is different, so we quote individually. After a short conversation about what you need, we send
+              you a clear quote with what is included — no hidden costs.</p></div>
+          </details>
+          <details class="faq__item reveal">
+            <summary>How long will my project take?<svg class="icon"><use href="#i-chevron"/></svg></summary>
+            <div class="faq__answer"><p>It depends on the size of the project. A business website is much quicker than a custom management system. We
+              agree a timeline with you before work starts and keep you updated throughout.</p></div>
+          </details>
+          <details class="faq__item reveal">
+            <summary>Do you only work with businesses in Warri?<svg class="icon"><use href="#i-chevron"/></svg></summary>
+            <div class="faq__answer"><p>No. We are based in Warri, Delta State, and work with clients across Nigeria and beyond. Most of our
+              communication happens by phone, WhatsApp, email and video call.</p></div>
+          </details>
+          <details class="faq__item reveal">
+            <summary>Will my website work on mobile phones?<svg class="icon"><use href="#i-chevron"/></svg></summary>
+            <div class="faq__answer"><p>Yes. Everything we build is designed for phones first, then tablets and desktops.</p></div>
+          </details>
+          <details class="faq__item reveal">
+            <summary>Can I update the content myself?<svg class="icon"><use href="#i-chevron"/></svg></summary>
+            <div class="faq__answer"><p>Yes, if you need to. We can include a secure admin dashboard so you can update text, images and other content
+              without any technical knowledge.</p></div>
+          </details>
+          <details class="faq__item reveal">
+            <summary>Do you provide support after launch?<svg class="icon"><use href="#i-chevron"/></svg></summary>
+            <div class="faq__answer"><p>Yes. We offer website maintenance and technical support, including updates, fixes and improvements.</p></div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 10. CTA ============ -->
+    <section class="cta-band" aria-labelledby="ctaTitle">
+      <div class="container cta-band__inner reveal">
+        <div>
+          <h2 id="ctaTitle">Have a project in mind?</h2>
+          <p>Tell us what you want to achieve. We'll recommend the right solution and give you a clear plan.</p>
+        </div>
+        <div class="cta-band__actions">
+          <a href="/#contact" class="btn btn--light btn--lg" data-start-project>Start a Project <svg class="icon"><use href="#i-arrow"/></svg></a>
+          <a href="https://wa.me/2348124529757" class="btn btn--ghost-light btn--lg" target="_blank" rel="noopener" data-company-link="whatsapp"><svg class="icon"><use href="#i-whatsapp"/></svg>Chat on WhatsApp</a>
         </div>
       </div>
     </section>
 
     <!-- ============ CONTACT ============ -->
-    <section class="section section--contact" id="contact">
-      <p class="eyebrow reveal">mail --send</p>
-      <h2 class="section__title section__title--onDark reveal reveal-d1">Let's build something</h2>
-      <p class="section__lede reveal reveal-d2">Tell us what you're building. We usually reply within a day.</p>
-      <div class="contact-actions reveal reveal-d3">
-        <a class="btn btn--primary" id="contactEmail" href="mailto:shereboyofficial1515@gmail.com">Email us</a>
-        <a class="btn btn--outline" id="contactWhatsapp" href="https://wa.me/2348124529757" target="_blank"
-          rel="noopener">WhatsApp</a>
-        <a class="btn btn--outline" id="contactCall" href="tel:07010288040">Call us</a>
-      </div>
-      <div class="social-links reveal reveal-d3" id="socialLinks">
-        <a href="" id="socialInstagram" target="_blank" rel="noopener" aria-label="SHEREBOY TECH LTD on Instagram (opens in a new tab)" hidden>
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1"></circle></svg>
-        </a>
-        <a href="" id="socialTiktok" target="_blank" rel="noopener" aria-label="SHEREBOY TECH LTD on TikTok (opens in a new tab)" hidden>
-          <svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 3v10.2a2.8 2.8 0 1 1-2-2.68V8.4a5 5 0 1 0 4 4.9V8.6a6.6 6.6 0 0 0 4 1.35V7.6a4 4 0 0 1-3.6-2.2A4 4 0 0 1 16 3h-2z"></path></svg>
-        </a>
-        <a href="" id="socialYoutube" target="_blank" rel="noopener" aria-label="SHEREBOY TECH LTD on YouTube (opens in a new tab)" hidden>
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="2.5" y="5.5" width="19" height="13" rx="4"></rect><path d="M10.5 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none"></path></svg>
-        </a>
-      </div>
+    <section class="section section--contact" id="contact" aria-labelledby="contactTitle">
+      <div class="container contact">
+        <div class="contact__info">
+          <p class="eyebrow reveal">Get in Touch</p>
+          <h2 class="section-title reveal" id="contactTitle">Let's talk about your project.</h2>
+          <p class="section-lede reveal">Fill in the form and we'll get back to you within one business day. Prefer to talk now? Reach us directly.</p>
+          <ul class="contact-cards">
+            <li class="reveal"><a class="contact-card" href="mailto:support@shereboytechltd.site" data-company-link="email">
+              <span class="contact-card__icon"><svg class="icon"><use href="#i-mail"/></svg></span>
+              <span><small>Email</small><strong data-company-text="email">support@shereboytechltd.site</strong></span></a></li>
+            <li class="reveal"><a class="contact-card" href="https://wa.me/2348124529757" target="_blank" rel="noopener" data-company-link="whatsapp">
+              <span class="contact-card__icon contact-card__icon--green"><svg class="icon"><use href="#i-whatsapp"/></svg></span>
+              <span><small>WhatsApp</small><strong data-company-text="whatsapp">0812 452 9757</strong></span></a></li>
+            <li class="reveal"><a class="contact-card" href="tel:+2347010288040" data-company-link="phone">
+              <span class="contact-card__icon"><svg class="icon"><use href="#i-phone"/></svg></span>
+              <span><small>Phone</small><strong data-company-text="phone">0701 028 8040</strong></span></a></li>
+            <li class="reveal"><div class="contact-card">
+              <span class="contact-card__icon"><svg class="icon"><use href="#i-pin"/></svg></span>
+              <span><small>Office</small><strong data-company-text="address">No. 4, Koko Street, Jeddo, Warri, Delta State</strong></span></div></li>
+          </ul>
+        </div>
 
-      <form class="contact-form reveal reveal-d4" id="contactForm">
-        <div class="contact-form__row">
-          <div>
-            <label for="cfName">Name</label>
-            <input type="text" id="cfName" name="name" maxlength="150" required>
+        <form class="enquiry reveal" id="enquiryForm" novalidate>
+          <div class="enquiry__head">
+            <h3>Project enquiry</h3>
+            <p>Fields marked <span aria-hidden="true">*</span><span class="sr-only">with an asterisk</span> are required.</p>
           </div>
-          <div>
-            <label for="cfEmail">Email</label>
-            <input type="email" id="cfEmail" name="email" maxlength="200" required>
+          <div class="form-grid">
+            <div class="field">
+              <label for="efName">Full name <span aria-hidden="true">*</span></label>
+              <input type="text" id="efName" name="name" maxlength="150" autocomplete="name" required>
+              <p class="field__error" id="efNameError"></p>
+            </div>
+            <div class="field">
+              <label for="efEmail">Email address <span aria-hidden="true">*</span></label>
+              <input type="email" id="efEmail" name="email" maxlength="200" autocomplete="email" inputmode="email" required>
+              <p class="field__error" id="efEmailError"></p>
+            </div>
+            <div class="field">
+              <label for="efPhone">Phone number</label>
+              <input type="tel" id="efPhone" name="phone" maxlength="20" autocomplete="tel" inputmode="tel" placeholder="e.g. 0801 234 5678">
+              <p class="field__error" id="efPhoneError"></p>
+            </div>
+            <div class="field">
+              <label for="efType">Type of project <span aria-hidden="true">*</span></label>
+              <div class="select">
+                <select id="efType" name="project_type" required>
+                  <option value="">Select a project type</option>
+                  <option>Website</option>
+                  <option>Web application</option>
+                  <option>Custom software</option>
+                  <option>Business management system</option>
+                  <option>Mobile application</option>
+                  <option>API / integration</option>
+                  <option>Maintenance &amp; support</option>
+                  <option>Something else</option>
+                </select>
+                <svg class="icon"><use href="#i-chevron"/></svg>
+              </div>
+              <p class="field__error" id="efTypeError"></p>
+            </div>
+            <div class="field field--full">
+              <label for="efMessage">Project description <span aria-hidden="true">*</span></label>
+              <textarea id="efMessage" name="message" rows="5" maxlength="3000" required
+                placeholder="What would you like to build, and what should it help your business achieve?"></textarea>
+              <div class="field__meta"><p class="field__error" id="efMessageError"></p><span class="field__count" id="efCount">0 / 3000</span></div>
+            </div>
+            <div class="hp" aria-hidden="true">
+              <label for="efWebsite">Leave this field empty</label>
+              <input type="text" id="efWebsite" name="website" tabindex="-1" autocomplete="off">
+            </div>
           </div>
-        </div>
-        <div class="contact-form__row">
-          <div>
-            <label for="cfPhone">Phone (optional)</label>
-            <input type="tel" id="cfPhone" name="phone" maxlength="50">
-          </div>
-          <div>
-            <label for="cfSubject">Subject (optional)</label>
-            <input type="text" id="cfSubject" name="subject" maxlength="200">
-          </div>
-        </div>
-        <label for="cfMessage">Message</label>
-        <textarea id="cfMessage" name="message" rows="5" maxlength="3000" required></textarea>
-        <button type="submit" class="btn btn--primary" id="contactSubmitBtn">Send message</button>
-        <p class="contact-form__status" id="contactFormStatus" hidden></p>
-      </form>
+          <button type="submit" class="btn btn--primary btn--lg btn--block" id="enquirySubmit">Send enquiry <svg class="icon"><use href="#i-send"/></svg></button>
+          <div class="form-status" id="enquiryStatus" role="status" hidden></div>
+          <p class="enquiry__note"><svg class="icon"><use href="#i-lock"/></svg>Your details are only used to respond to your enquiry.</p>
+        </form>
+      </div>
     </section>
-
   </main>
 
   <!-- ============ FOOTER ============ -->
   <footer class="footer">
-    <div class="footer__inner">
-      <div>
-        <div class="footer__brandRow" id="footerBrandRow">
-          <img src="" alt="SHEREBOY TECH LTD logo" class="footer__logo" id="footerLogo" hidden>
-          <p class="footer__brand" id="footerBrandText">SHEREBOY TECH LTD</p>
+    <div class="container footer__inner">
+      <div class="footer__brand">
+        <a href="/" class="footer__logo" aria-label="SHEREBOY TECH LTD — home">
+          <img src="/assets/images/shereboy-tech-logo-240.webp" alt="SHEREBOY TECH LTD" width="240" height="192" loading="lazy">
+        </a>
+        <p>Engineering websites, web applications and business systems that help Nigerian businesses operate, grow and compete.</p>
+        <div class="footer__social" id="footerSocial">
+          <a href="https://www.instagram.com/shereboy_tech011" target="_blank" rel="noopener" aria-label="Instagram (opens in a new tab)" data-social="instagram_url"><svg class="icon"><use href="#i-instagram"/></svg></a>
+          <a href="https://www.tiktok.com/@shereboy" target="_blank" rel="noopener" aria-label="TikTok (opens in a new tab)" data-social="tiktok_url"><svg class="icon"><use href="#i-tiktok"/></svg></a>
+          <a href="https://youtube.com/@shereboytech1379" target="_blank" rel="noopener" aria-label="YouTube (opens in a new tab)" data-social="youtube_url"><svg class="icon"><use href="#i-youtube"/></svg></a>
         </div>
-        <p class="footer__desc">Modern websites and full-stack web applications, built for business.</p>
       </div>
+      <nav class="footer__col" aria-label="Company">
+        <h3>Company</h3>
+        <a href="/#about">About Us</a>
+        <a href="/#work">Our Work</a>
+        <a href="/#insights" id="footerInsights">Insights</a>
+        <a href="/#registration">Company Registration</a>
+      </nav>
+      <nav class="footer__col" aria-label="Services">
+        <h3>Services</h3>
+        <div id="footerServices">
+          <a href="/#services">Website Development</a>
+          <a href="/#services">Web Applications</a>
+          <a href="/#services">Business Software</a>
+        </div>
+      </nav>
       <div class="footer__col">
-        <h4>Company</h4>
-        <a href="#about">About</a>
-        <a href="#services">Services</a>
-        <a href="#projects">Projects</a>
-        <a href="#blog">Blog</a>
-      </div>
-      <div class="footer__col">
-        <h4>Contact</h4>
-        <a href="mailto:shereboyofficial1515@gmail.com">shereboyofficial1515@gmail.com</a>
-        <a href="tel:07010288040">07010288040</a>
-        <a href="https://wa.me/2348124529757" target="_blank" rel="noopener">WhatsApp</a>
+        <h3>Contact</h3>
+        <a href="mailto:support@shereboytechltd.site" data-company-link="email" data-company-text="email">support@shereboytechltd.site</a>
+        <a href="tel:+2347010288040" data-company-link="phone" data-company-text="phone">0701 028 8040</a>
+        <a href="https://wa.me/2348124529757" target="_blank" rel="noopener" data-company-link="whatsapp">WhatsApp: <span data-company-text="whatsapp">0812 452 9757</span></a>
+        <span class="footer__address" data-company-text="address">No. 4, Koko Street, Jeddo, Warri, Delta State</span>
       </div>
     </div>
-    <p class="footer__bottom">&copy; <span id="year"></span> SHEREBOY TECH LTD. All rights reserved.</p>
+    <div class="container footer__bottom">
+      <p>&copy; <span id="year">2026</span> SHEREBOY TECH LTD. All rights reserved.</p>
+      <p>CAC RC <span id="footerRc">9364652</span> · Registered in Nigeria</p>
+    </div>
   </footer>
 
-  <!-- ============ BLOG POST MODAL (client-side route: /blog/:slug) ============ -->
-  <div class="modal" id="postModal" role="dialog" aria-modal="true" aria-label="Blog post" hidden>
-    <div class="modal__backdrop" id="postModalBackdrop"></div>
-    <article class="modal__panel">
-      <button class="modal__close" id="postModalClose" aria-label="Close">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"></path></svg>
-      </button>
-      <div id="postModalContent"></div>
+  <!-- ============ AI ASSISTANT (floating) ============ -->
+  <button type="button" class="assistant-fab" id="assistantOpen" aria-controls="assistant" aria-expanded="false">
+    <svg class="icon"><use href="#i-chat"/></svg><span>Ask our assistant</span>
+  </button>
+  <section class="assistant" id="assistant" aria-label="SHEREBOY AI Assistant" hidden>
+    <header class="assistant__head">
+      <div>
+        <strong>SHEREBOY Assistant</strong>
+        <span>AI answers about our services. For quotes, contact the team.</span>
+      </div>
+      <button type="button" class="icon-btn" id="assistantClose" aria-label="Close assistant"><svg class="icon"><use href="#i-close"/></svg></button>
+    </header>
+    <div class="assistant__log" id="aiChatLog" aria-live="polite">
+      <div class="ai-msg ai-msg--bot">Hello! I can answer questions about SHEREBOY TECH LTD, our services and how to get started.</div>
+    </div>
+    <form class="assistant__form" id="aiChatForm">
+      <label for="aiChatInput" class="sr-only">Your question</label>
+      <textarea id="aiChatInput" maxlength="800" rows="1" placeholder="Type your question…" autocomplete="off" required></textarea>
+      <button type="submit" class="icon-btn icon-btn--primary" aria-label="Send question"><svg class="icon"><use href="#i-send"/></svg></button>
+    </form>
+  </section>
+
+  <!-- ============ PROJECT DETAILS MODAL ============ -->
+  <div class="modal" id="projectModal" role="dialog" aria-modal="true" aria-labelledby="projectModalTitle" hidden>
+    <div class="modal__backdrop" data-close-modal></div>
+    <article class="modal__panel modal__panel--project">
+      <button class="icon-btn modal__close" type="button" data-close-modal aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button>
+      <div id="projectModalBody"></div>
     </article>
   </div>
 
-  <script src="/js/app.js"></script>
+  <!-- ============ LIVE PREVIEW ============ -->
+  <div class="preview" id="previewModal" role="dialog" aria-modal="true" aria-labelledby="previewTitle" hidden>
+    <div class="preview__toolbar">
+      <div class="preview__title">
+        <span class="preview__live"><span class="hv-pulse"></span>Live Preview</span>
+        <strong id="previewTitle">Project</strong>
+        <span class="preview__url" id="previewUrl"></span>
+      </div>
+      <div class="preview__devices" role="group" aria-label="Preview size">
+        <button type="button" class="seg is-active" data-device="desktop" aria-pressed="true"><svg class="icon"><use href="#i-desktop"/></svg><span>Desktop</span></button>
+        <button type="button" class="seg" data-device="tablet" aria-pressed="false"><svg class="icon"><use href="#i-tablet"/></svg><span>Tablet</span></button>
+        <button type="button" class="seg" data-device="mobile" aria-pressed="false"><svg class="icon"><use href="#i-mobile"/></svg><span>Mobile</span></button>
+      </div>
+      <div class="preview__actions">
+        <button type="button" class="icon-btn" id="previewRefresh" aria-label="Reload preview" title="Reload"><svg class="icon"><use href="#i-refresh"/></svg></button>
+        <button type="button" class="icon-btn" id="previewFullscreen" aria-label="Full screen" title="Full screen"><svg class="icon"><use href="#i-expand"/></svg></button>
+        <a class="icon-btn" id="previewNewTab" href="#" target="_blank" rel="noopener" aria-label="Open website in a new tab" title="Open in new tab"><svg class="icon"><use href="#i-external"/></svg></a>
+        <button type="button" class="icon-btn preview__close" id="previewClose" aria-label="Close preview" title="Close"><svg class="icon"><use href="#i-close"/></svg></button>
+      </div>
+    </div>
+    <div class="preview__stage" id="previewStage">
+      <div class="preview__device" id="previewDevice" data-device="desktop">
+        <div class="preview__frameWrap" id="previewFrameWrap"></div>
+        <div class="preview__state" id="previewState" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DOCUMENT VIEWER (CAC certificate) ============ -->
+  <div class="modal modal--doc" id="docModal" role="dialog" aria-modal="true" aria-labelledby="docModalTitle" hidden>
+    <div class="modal__backdrop" data-close-modal></div>
+    <div class="modal__panel modal__panel--doc">
+      <header class="doc-viewer__bar">
+        <strong id="docModalTitle">Certificate of Incorporation</strong>
+        <div class="doc-viewer__actions">
+          <button type="button" class="icon-btn" id="docZoom" aria-label="Zoom" aria-pressed="false" title="Zoom"><svg class="icon"><use href="#i-zoom"/></svg></button>
+          <a class="icon-btn" id="docOpen" href="#" target="_blank" rel="noopener" aria-label="Open original document in a new tab" title="Open original"><svg class="icon"><use href="#i-external"/></svg></a>
+          <button type="button" class="icon-btn" data-close-modal aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button>
+        </div>
+      </header>
+      <div class="doc-viewer__body" id="docModalBody"></div>
+    </div>
+  </div>
+
+  <!-- ============ BLOG POST MODAL (client-side route: /blog/:slug) ============ -->
+  <div class="modal" id="postModal" role="dialog" aria-modal="true" aria-labelledby="postModalTitle" hidden>
+    <div class="modal__backdrop" data-close-modal></div>
+    <article class="modal__panel modal__panel--post">
+      <button class="icon-btn modal__close" type="button" data-close-modal aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button>
+      <div id="postModalContent"></div>
+    </article>
+  </div>
 </body>
 
 </html>

@@ -1,693 +1,1137 @@
 // public/js/app.js
-// Vanilla JS frontend logic — fetches public data from the REST API and
-// renders it into the page, with loading / success / error feedback at
-// every step so the site never feels static. No secrets ever live here.
+// SHEREBOY TECH LTD — public site. Vanilla JS, no dependencies.
+// Every piece of company data (projects, services, reviews, posts, company
+// details, founder photo, CAC certificate) comes from the REST API; the markup
+// only carries sensible fallbacks. No secrets ever live here, and no inline
+// event handlers are used (the site runs under a strict Content-Security-Policy).
 
-document.getElementById('year').textContent = new Date().getFullYear();
+(function () {
+  'use strict';
 
-// =========================================================
-// Toast notifications — shared success/error/info feedback
-// =========================================================
-const toastStack = document.getElementById('toastStack');
-function showToast(message, type = 'info', duration = 4500) {
-  if (!toastStack) return;
-  const toast = document.createElement('div');
-  toast.className = `toast toast--${type}`;
-  toast.textContent = message;
-  toastStack.appendChild(toast);
-  setTimeout(() => {
-    toast.classList.add('is-leaving');
-    setTimeout(() => toast.remove(), 200);
-  }, duration);
-}
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  const prefersReducedMotion = document.documentElement.classList.contains('reduced-motion');
 
-// =========================================================
-// Button loading-state helper — disables button, shows spinner
-// =========================================================
-function setButtonLoading(btn, loading, loadingText = 'Please wait…') {
-  if (!btn) return;
-  if (loading) {
-    btn.dataset.originalText = btn.dataset.originalText || btn.textContent;
-    btn.disabled = true;
-    btn.classList.add('is-loading');
-    btn.innerHTML = `<span class="spinner"></span> ${loadingText}`;
-  } else {
-    btn.disabled = false;
-    btn.classList.remove('is-loading');
-    btn.textContent = btn.dataset.originalText || btn.textContent;
+  $('#year').textContent = new Date().getFullYear();
+
+  // =========================================================
+  // Utilities
+  // =========================================================
+  function escapeHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
-}
-
-// =========================================================
-// Preloader — animates the site name in, then reveals the page
-// =========================================================
-(function initPreloader() {
-  const preloader = document.getElementById('preloader');
-  if (!preloader) return;
-
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  document.body.classList.add('is-preloading');
-
-  const MIN_DISPLAY = prefersReducedMotion ? 150 : 1650;
-  const start = Date.now();
-  let hidden = false;
-
-  function hidePreloader() {
-    if (hidden) return;
-    hidden = true;
-    const elapsed = Date.now() - start;
-    const wait = Math.max(MIN_DISPLAY - elapsed, 0);
-    setTimeout(() => {
-      preloader.classList.add('is-hidden');
-      preloader.setAttribute('aria-hidden', 'true');
-      document.body.classList.remove('is-preloading');
-      setTimeout(() => preloader.remove(), 550);
-    }, wait);
+  function icon(name, cls = '') {
+    return `<svg class="icon ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+  }
+  function paragraphs(text) {
+    return String(text || '').split(/\n\s*\n|\n/).map(p => p.trim()).filter(Boolean).map(p => `<p>${escapeHtml(p)}</p>`).join('');
+  }
+  function isHttpUrl(url) { return typeof url === 'string' && /^https?:\/\/\S+$/i.test(url.trim()); }
+  function safeHref(url) {
+    if (!url) return '';
+    const u = String(url).trim();
+    if (u.startsWith('/') && !u.startsWith('//')) return u;
+    return isHttpUrl(u) ? u : '';
+  }
+  function hostOf(url) { try { return new URL(url, location.origin).host; } catch { return ''; } }
+  function formatDate(d, opts = { day: 'numeric', month: 'short', year: 'numeric' }) {
+    const date = new Date(d);
+    return isNaN(date) ? '' : date.toLocaleDateString('en-GB', opts);
   }
 
-  if (document.readyState === 'complete') {
-    hidePreloader();
-  } else {
-    window.addEventListener('load', hidePreloader);
+  const toastStack = $('#toastStack');
+  function showToast(message, type = 'info', duration = 4500) {
+    const toast = document.createElement('div');
+    toast.className = `toast toast--${type}`;
+    toast.textContent = message;
+    toastStack.appendChild(toast);
+    setTimeout(() => { toast.classList.add('is-leaving'); setTimeout(() => toast.remove(), 220); }, duration);
   }
-  // Safety net in case 'load' is delayed by a slow third-party asset
-  setTimeout(hidePreloader, 4500);
-})();
 
-// =========================================================
-// Scroll reveals — fade/slide elements in as they enter view
-// =========================================================
-const revealObserver = 'IntersectionObserver' in window
-  ? new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('is-visible');
-        revealObserver.unobserve(entry.target);
+  function setButtonLoading(btn, loading, text = 'Please wait…') {
+    if (!btn) return;
+    if (loading) {
+      btn.dataset.originalHtml = btn.dataset.originalHtml || btn.innerHTML;
+      btn.disabled = true;
+      btn.classList.add('is-loading');
+      btn.innerHTML = `<span class="spinner" aria-hidden="true"></span> ${escapeHtml(text)}`;
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('is-loading');
+      if (btn.dataset.originalHtml) btn.innerHTML = btn.dataset.originalHtml;
+    }
+  }
+
+  async function apiGet(path) {
+    const res = await fetch(path, { headers: { Accept: 'application/json' } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
+    return data;
+  }
+
+  // Images: a fallback sits behind every image; the image fades in on load and
+  // hides itself on error so a broken URL never shows a broken-image icon.
+  function mediaHtml({ src, alt = '', className = '', fallback = 'image', eager = false, sizes }) {
+    const safe = safeHref(src);
+    return `<div class="media media--loading ${className}">
+      <div class="media__fallback" aria-hidden="true">${icon(fallback)}</div>
+      ${safe ? `<img class="media__img" src="${escapeHtml(safe)}" alt="${escapeHtml(alt)}" ${eager ? '' : 'loading="lazy"'} decoding="async" ${sizes ? `sizes="${sizes}"` : ''}>` : ''}
+    </div>`;
+  }
+  function hydrateMedia(root = document) {
+    $$('img.media__img:not([data-hydrated])', root).forEach(img => {
+      img.dataset.hydrated = '1';
+      const box = img.closest('.media');
+      const done = (ok) => {
+        img.classList.add(ok ? 'is-loaded' : 'is-error');
+        if (ok) box?.classList.add('media--ready');
+        box?.classList.remove('media--loading');
+        if (!ok) console.warn('[media] image failed to load:', img.currentSrc || img.src);
+      };
+      if (img.complete && img.getAttribute('src')) done(img.naturalWidth > 0);
+      else {
+        img.addEventListener('load', () => done(true), { once: true });
+        img.addEventListener('error', () => done(false), { once: true });
       }
+      if (!img.getAttribute('src')) box?.classList.remove('media--loading');
     });
-  }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' })
-  : null;
-
-function observeReveals(root = document) {
-  const els = root.querySelectorAll ? root.querySelectorAll('.reveal:not(.is-visible)') : [];
-  if (!revealObserver) {
-    els.forEach(el => el.classList.add('is-visible')); // graceful fallback
-    return;
   }
-  els.forEach(el => revealObserver.observe(el));
-}
-document.addEventListener('DOMContentLoaded', () => observeReveals());
-// In case DOMContentLoaded already fired before this script ran
-if (document.readyState !== 'loading') observeReveals();
 
-// Safety net: a fast/instant scroll (fragment jump, scrollbar drag, "find in
-// page") can skip past elements without the IntersectionObserver ever
-// reporting them as intersecting. Once scrolling settles, force-reveal
-// anything left invisible that's currently on screen so nothing stays stuck.
-let revealSafetyTimer = null;
-window.addEventListener('scroll', () => {
-  clearTimeout(revealSafetyTimer);
-  revealSafetyTimer = setTimeout(() => {
-    document.querySelectorAll('.reveal:not(.is-visible)').forEach(el => {
-      const rect = el.getBoundingClientRect();
-      if (rect.top < window.innerHeight && rect.bottom > 0) {
-        el.classList.add('is-visible');
-        if (revealObserver) revealObserver.unobserve(el);
-      }
-    });
-  }, 200);
-}, { passive: true });
-
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str ?? '';
-  return div.innerHTML;
-}
-
-// =========================================================
-// SVG icon system — replaces emoji / raw unicode UI symbols
-// =========================================================
-const ICONS = {
-  warning: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3.5l9.5 16.5H2.5L12 3.5z" stroke-linejoin="round"></path><path d="M12 10v4.5" stroke-linecap="round"></path><circle cx="12" cy="17.5" r="0.9" fill="currentColor" stroke="none"></circle></svg>',
-  success: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9.5"></circle><path d="M8 12.5l2.6 2.6L16.5 9" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
-  star: '<svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l2.9 6.2 6.8.7-5.1 4.6 1.5 6.7L12 17.4 5.9 20.7l1.5-6.7-5.1-4.6 6.8-.7L12 2.5z"></path></svg>',
-  starEmpty: '<svg class="icon is-empty" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M12 2.5l2.9 6.2 6.8.7-5.1 4.6 1.5 6.7L12 17.4 5.9 20.7l1.5-6.7-5.1-4.6 6.8-.7L12 2.5z"></path></svg>',
-  arrowRight: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
-  externalLink: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M14 4h6v6M20 4L10 14M19 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
-  image: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"></rect><circle cx="9" cy="10" r="1.8"></circle><path d="M21 16.5l-5.2-5.2a2 2 0 0 0-2.8 0L5 19" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
-  post: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 3.5h9l4.5 4.5V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z" stroke-linejoin="round"></path><path d="M8.5 12h7M8.5 15.5h7M8.5 8.5h4"></path></svg>',
-  code: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 8l-4.5 4L9 16M15 8l4.5 4-4.5 4" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
-  layers: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5 9-5z" stroke-linejoin="round"></path><path d="M3 13l9 5 9-5M3 8.5l9 5 9-5" stroke-linejoin="round"></path></svg>',
-  shield: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3l7.5 3v5.5C19.5 16.7 16.3 20 12 21c-4.3-1-7.5-4.3-7.5-9.5V6L12 3z" stroke-linejoin="round"></path><path d="M9 12l2 2 4-4.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
-  rocket: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 2.5c3 1.2 5 4.3 5 8.2 0 2-.6 4-1.7 5.6L12 20l-3.3-3.7A9.6 9.6 0 0 1 7 10.7c0-3.9 2-7 5-8.2z" stroke-linejoin="round"></path><circle cx="12" cy="10" r="1.8"></circle><path d="M8.5 15.5L6 18M15.5 15.5L18 18" stroke-linecap="round"></path></svg>',
-  support: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><circle cx="12" cy="12" r="3.2"></circle><path d="M6.1 6.1l3.2 3.2M17.9 6.1l-3.2 3.2M6.1 17.9l3.2-3.2M17.9 17.9l-3.2-3.2" stroke-linecap="round"></path></svg>',
-  device: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="12" height="9" rx="1.2"></rect><path d="M9 17.5h.01M18 8h2.5a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5H18a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" stroke-linecap="round"></path></svg>',
-  person: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" stroke-linecap="round"></path></svg>',
-  instagram: '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1"></circle></svg>'
-};
-
-const SERVICE_ICON_MAP = [
-  { match: /web|site|frontend|landing/i, icon: ICONS.code },
-  { match: /app|mobile|android|ios/i, icon: ICONS.device },
-  { match: /cloud|host|deploy|infra/i, icon: ICONS.layers },
-  { match: /security|auth|protect/i, icon: ICONS.shield },
-  { match: /support|maintain|care/i, icon: ICONS.support },
-  { match: /launch|growth|market|speed|performance/i, icon: ICONS.rocket }
-];
-function iconForService(service) {
-  const hay = `${service.icon || ''} ${service.title || ''}`;
-  const found = SERVICE_ICON_MAP.find(m => m.match.test(hay));
-  return found ? found.icon : ICONS.code;
-}
-
-function loadingRow(text, onDark = true) {
-  return `<div class="loading-row"><span class="spinner ${onDark ? '' : 'spinner--dark'}"></span> ${escapeHtml(text)}</div>`;
-}
-
-function errorRow(text, retryFnName) {
-  return `<div class="error-row">${ICONS.warning} ${escapeHtml(text)} <button class="retry-btn" onclick="${retryFnName}()">Retry</button></div>`;
-}
-
-function skeletonCards(count, className) {
-  return Array.from({ length: count }).map(() => `<div class="skeleton skeleton-card ${className || ''}"></div>`).join('');
-}
-
-// =========================================================
-// Image handling — consistent loading / fade-in / fallback
-// =========================================================
-let mediaUid = 0;
-function mediaImg({ src, alt, className = '', fallbackIcon = ICONS.image, lazy = true, id }) {
-  id = id || `media-${++mediaUid}`;
-  if (!src) {
-    return `<div class="media ${className}" id="${id}"><div class="media__fallback" aria-hidden="true">${fallbackIcon}</div></div>`;
+  function errorState(message, retryId) {
+    return `<div class="error-state">${icon('warning')}<span>${escapeHtml(message)}</span><button type="button" class="retry-btn" data-retry="${retryId}">Try again</button></div>`;
   }
-  return `<div class="media ${className}" id="${id}">
-    <div class="media__fallback" aria-hidden="true">${fallbackIcon}</div>
-    <img class="media__img" src="${escapeHtml(src)}" alt="${escapeHtml(alt || '')}" ${lazy ? 'loading="lazy"' : ''} onload="this.classList.add('is-loaded')" onerror="this.classList.add('is-error')">
-  </div>`;
-}
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-retry]');
+    if (!btn) return;
+    ({ services: loadServices, projects: loadProjects })[btn.dataset.retry]?.();
+  });
 
-// =========================================================
-// Blog content sanitization — strips scripts / event handlers / unsafe
-// URLs before injecting server-authored HTML into the page.
-// =========================================================
-const ALLOWED_TAGS = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'A', 'UL', 'OL', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'CODE', 'IMG', 'SPAN', 'DIV', 'HR', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TD', 'TH', 'FIGURE', 'FIGCAPTION']);
-const ALLOWED_ATTRS = { A: ['href', 'title'], IMG: ['src', 'alt', 'title'] };
-function sanitizeHtml(html) {
-  const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
-  const walk = (node) => {
-    Array.from(node.childNodes).forEach(child => {
-      if (child.nodeType === Node.ELEMENT_NODE) {
-        if (!ALLOWED_TAGS.has(child.tagName)) {
-          child.replaceWith(...Array.from(child.childNodes));
-          return;
-        }
-        Array.from(child.attributes).forEach(attr => {
-          const allowed = ALLOWED_ATTRS[child.tagName] || [];
-          const isUnsafeUrl = /^(href|src)$/i.test(attr.name) && /^\s*javascript:/i.test(attr.value);
-          if (!allowed.includes(attr.name.toLowerCase()) || isUnsafeUrl) child.removeAttribute(attr.name);
-        });
-        if (child.tagName === 'A') { child.setAttribute('target', '_blank'); child.setAttribute('rel', 'noopener noreferrer'); }
-        walk(child);
-      } else if (child.nodeType !== Node.TEXT_NODE) {
-        child.remove();
-      }
+  // =========================================================
+  // Scroll reveal
+  // =========================================================
+  const revealObserver = ('IntersectionObserver' in window && !prefersReducedMotion)
+    ? new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) { entry.target.classList.add('is-visible'); revealObserver.unobserve(entry.target); }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' })
+    : null;
+
+  function observeReveals(root = document) {
+    const els = $$('.reveal:not(.is-visible)', root);
+    // Stagger siblings that enter together
+    els.forEach((el, i) => { if (!el.style.getPropertyValue('--d')) el.style.setProperty('--d', `${Math.min(i % 4, 3) * 0.07}s`); });
+    if (!revealObserver) { els.forEach(el => el.classList.add('is-visible')); return; }
+    els.forEach(el => revealObserver.observe(el));
+  }
+  observeReveals();
+  // Safety net: fast jumps (anchor links, find-in-page) can skip the observer
+  let revealTimer;
+  window.addEventListener('scroll', () => {
+    clearTimeout(revealTimer);
+    revealTimer = setTimeout(() => {
+      $$('.reveal:not(.is-visible)').forEach(el => {
+        const r = el.getBoundingClientRect();
+        if (r.top < innerHeight && r.bottom > 0) { el.classList.add('is-visible'); revealObserver?.unobserve(el); }
+      });
+    }, 150);
+  }, { passive: true });
+
+  // Animated counters — only ever count up to real values from the API
+  function animateCount(el, target) {
+    if (!el || !Number.isFinite(target)) return;
+    if (prefersReducedMotion || !('IntersectionObserver' in window)) { el.textContent = target; return; }
+    const run = () => {
+      const start = performance.now();
+      const dur = 1100;
+      const step = (now) => {
+        const t = Math.min((now - start) / dur, 1);
+        el.textContent = Math.round(target * (1 - Math.pow(1 - t, 3)));
+        if (t < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    };
+    const io = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { io.disconnect(); run(); } }, { threshold: 0.6 });
+    io.observe(el);
+  }
+
+  // =========================================================
+  // Navigation
+  // =========================================================
+  const nav = $('#nav');
+  const onScroll = () => nav.classList.toggle('is-scrolled', window.scrollY > 12);
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  const drawer = $('#navDrawer');
+  const navToggle = $('#navToggle');
+  function openDrawer() {
+    drawer.classList.add('is-open');
+    drawer.setAttribute('aria-hidden', 'false');
+    navToggle.setAttribute('aria-expanded', 'true');
+    lockScroll(true);
+    setTimeout(() => $('.drawer__links a', drawer)?.focus({ preventScroll: true }), 80);
+  }
+  function closeDrawer({ restoreFocus = true } = {}) {
+    if (!drawer.classList.contains('is-open')) return;
+    drawer.classList.remove('is-open');
+    drawer.setAttribute('aria-hidden', 'true');
+    navToggle.setAttribute('aria-expanded', 'false');
+    lockScroll(false);
+    if (restoreFocus) navToggle.focus();
+  }
+  navToggle.addEventListener('click', openDrawer);
+  $$('[data-close-drawer]', drawer).forEach(el => el.addEventListener('click', () => closeDrawer()));
+  $$('a', drawer).forEach(a => a.addEventListener('click', () => closeDrawer({ restoreFocus: false })));
+  window.matchMedia('(min-width: 1000px)').addEventListener?.('change', (e) => { if (e.matches) closeDrawer({ restoreFocus: false }); });
+
+  // Scroll lock that survives nested overlays
+  let lockCount = 0;
+  function lockScroll(on) {
+    lockCount = Math.max(0, lockCount + (on ? 1 : -1));
+    document.body.classList.toggle('no-scroll', lockCount > 0);
+  }
+
+  // Scroll-spy for the desktop nav
+  (function initScrollSpy() {
+    const links = $$('.nav__links a[data-nav]');
+    const sections = links.map(a => document.getElementById(a.dataset.nav)).filter(Boolean);
+    if (!('IntersectionObserver' in window) || !sections.length) return;
+    const setActive = (id) => links.forEach(a => {
+      const on = a.dataset.nav === id;
+      a.classList.toggle('is-active', on);
+      if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
     });
-  };
-  walk(doc.body);
-  return doc.body.innerHTML;
-}
+    const io = new IntersectionObserver((entries) => {
+      entries.filter(e => e.isIntersecting).forEach(e => setActive(e.target.id));
+    }, { rootMargin: '-45% 0px -50% 0px' });
+    sections.forEach(s => io.observe(s));
+  })();
 
-// Some posts are authored as plain text/markdown-ish content (blank-line
-// separated paragraphs, "---" dividers) rather than real HTML. Detect that
-// and convert it into readable paragraphs instead of one run-on block.
-function formatPostContent(raw) {
-  const str = String(raw || '');
-  const looksLikeHtml = /<(p|div|h[1-6]|ul|ol|li|blockquote|pre|table|figure)\b/i.test(str);
-  if (looksLikeHtml) return sanitizeHtml(str);
+  // "Start a Project" buttons: scroll to the form and focus the first field
+  function goToEnquiry(projectType) {
+    const select = $('#efType');
+    if (projectType && select && [...select.options].some(o => o.value === projectType || o.text === projectType)) {
+      select.value = projectType;
+      clearFieldError(select);
+    }
+    $('#contact').scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'start' });
+    setTimeout(() => $('#efName')?.focus({ preventScroll: true }), prefersReducedMotion ? 0 : 650);
+  }
+  document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('[data-start-project]');
+    if (!trigger) return;
+    e.preventDefault();
+    closeDrawer({ restoreFocus: false });
+    goToEnquiry(trigger.dataset.projectType);
+  });
 
-  const blocks = str.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean);
-  const html = blocks.map(b => {
-    if (/^-{3,}$/.test(b)) return '<hr>';
-    return `<p>${escapeHtml(b).replace(/\n/g, '<br>')}</p>`;
-  }).join('');
-  return sanitizeHtml(html);
-}
-
-async function apiGet(path) {
-  const res = await fetch(path);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
-  return data;
-}
-
-// ---------- Mobile nav ----------
-const navToggle = document.getElementById('navToggle');
-const navLinks = document.getElementById('navLinks');
-
-function isMenuOpen() { return navLinks?.classList.contains('is-open'); }
-function openMenu() {
-  if (!navLinks || !navToggle) return;
-  navLinks.classList.add('is-open');
-  navToggle.classList.add('is-active');
-  navToggle.setAttribute('aria-expanded', 'true');
-  document.body.classList.add('menu-open');
-}
-function closeMenu() {
-  if (!navLinks || !navToggle) return;
-  navLinks.classList.remove('is-open');
-  navToggle.classList.remove('is-active');
-  navToggle.setAttribute('aria-expanded', 'false');
-  document.body.classList.remove('menu-open');
-}
-navToggle?.addEventListener('click', () => { isMenuOpen() ? closeMenu() : openMenu(); });
-navLinks?.querySelectorAll('a').forEach(a => a.addEventListener('click', closeMenu));
-document.addEventListener('click', (e) => {
-  if (!isMenuOpen()) return;
-  if (navLinks.contains(e.target) || navToggle.contains(e.target)) return;
-  closeMenu();
-});
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && isMenuOpen()) { closeMenu(); navToggle.focus(); }
-});
-
-// ---------- Active nav state (scroll-spy via IntersectionObserver) ----------
-(function initActiveNav() {
-  const navLinkEls = navLinks ? Array.from(navLinks.querySelectorAll('a[href^="#"]')) : [];
-  if (!navLinkEls.length || !('IntersectionObserver' in window)) return;
-  const sections = navLinkEls
-    .map(a => document.querySelector(a.getAttribute('href')))
-    .filter(Boolean);
-  if (!sections.length) return;
-
-  const setActive = (id) => {
-    navLinkEls.forEach(a => a.classList.toggle('is-active', a.getAttribute('href') === `#${id}`));
-  };
-  const spyObserver = new IntersectionObserver((entries) => {
-    const visible = entries.filter(e => e.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-    if (visible.length) setActive(visible[0].target.id);
-  }, { rootMargin: '-45% 0px -50% 0px', threshold: [0, 0.25, 0.5, 0.75, 1] });
-  sections.forEach(s => spyObserver.observe(s));
-})();
-
-// =========================================================
-// Company info
-// =========================================================
-function showSocialLink(id, url) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  const isValidUrl = typeof url === 'string' && /^https?:\/\/.+/i.test(url.trim());
-  if (isValidUrl) {
-    el.href = url.trim();
+  // =========================================================
+  // Generic dialog handling (focus trap, Escape, focus restore)
+  // =========================================================
+  const openDialogs = [];
+  function openDialog(el, { opener, onClose } = {}) {
+    if (!el.hidden) return;
     el.hidden = false;
-  } else {
-    el.hidden = true;
+    openDialogs.push({ el, opener: opener || document.activeElement, onClose });
+    lockScroll(true);
+    requestAnimationFrame(() => ($('[data-autofocus]', el) || $('button, [href], input, textarea, select', el))?.focus());
   }
-}
+  function closeDialog(el, { restoreFocus = true } = {}) {
+    const idx = openDialogs.findIndex(d => d.el === el);
+    if (idx === -1) return;
+    const [entry] = openDialogs.splice(idx, 1);
+    el.hidden = true;
+    lockScroll(false);
+    entry.onClose?.();
+    if (restoreFocus && entry.opener && document.contains(entry.opener)) entry.opener.focus?.();
+  }
+  document.addEventListener('keydown', (e) => {
+    const top = openDialogs[openDialogs.length - 1];
+    if (e.key === 'Escape') {
+      if (top) { if (document.fullscreenElement) return; e.preventDefault(); closeDialog(top.el); return; }
+      if (drawer.classList.contains('is-open')) { closeDrawer(); return; }
+      if (!assistant.hidden) { closeAssistant(); }
+      return;
+    }
+    if (e.key === 'Tab') {
+      const container = top ? top.el : (drawer.classList.contains('is-open') ? $('.drawer__panel', drawer) : null);
+      if (!container) return;
+      const focusables = $$('a[href], button:not([disabled]), input:not([type="hidden"]), select, textarea, iframe, [tabindex]:not([tabindex="-1"])', container)
+        .filter(n => n.offsetParent !== null || n === document.activeElement);
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+  document.addEventListener('click', (e) => {
+    const closer = e.target.closest('[data-close-modal]');
+    if (closer) { const dlg = closer.closest('.modal'); if (dlg) closeDialog(dlg); }
+  });
 
-async function loadCompanyInfo() {
-  try {
-    const { company } = await apiGet('/api/company');
-    if (!company) return;
-    document.getElementById('aboutDescription').textContent = company.description ||
-      'SHEREBOY TECH LTD designs, builds and ships modern websites and full-stack web applications for businesses and individuals in Nigeria and beyond.';
-    document.getElementById('aboutMission').textContent = company.mission ||
-      'To deliver dependable, modern software that helps businesses run better.';
-    document.getElementById('aboutVision').textContent = company.vision ||
-      'To be a trusted technology partner for ambitious businesses across Africa.';
-    document.getElementById('aboutCac').textContent = company.cac_number || 'Registration in progress';
-    document.getElementById('aboutAddress').textContent = company.address || 'Nigeria';
-    document.getElementById('aboutEmail').textContent = company.email || 'shereboyofficial1515@gmail.com';
-    document.getElementById('ceoName').textContent = company.ceo_name || 'BAWO MADAMEDON';
-    document.getElementById('ceoTitle').textContent = company.ceo_title || 'CEO, SHEREBOY TECH LTD';
-    document.getElementById('ceoBio').textContent = company.ceo_bio || 'A detailed leadership profile is coming soon.';
-    if (company.ceo_photo_url) {
-      document.getElementById('ceoPhoto').outerHTML = mediaImg({
-        id: 'ceoPhoto', src: company.ceo_photo_url, alt: company.ceo_name || 'CEO photo', className: 'exec-profile__portrait', fallbackIcon: ICONS.person, lazy: false
+  // =========================================================
+  // Company information
+  // =========================================================
+  function digits(v) { return String(v || '').replace(/\D/g, ''); }
+  function localPhone(v) {
+    let d = digits(v);
+    if (d.startsWith('234')) d = `0${d.slice(3)}`;
+    return d.length === 11 ? `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}` : String(v || '').replace(/^tel:/i, '');
+  }
+  function intlPhone(v) {
+    let d = digits(v);
+    if (d.startsWith('0')) d = `234${d.slice(1)}`;
+    return d;
+  }
+  function cityFromAddress(address) {
+    const parts = String(address || '').split(',').map(s => s.trim()).filter(p => p && !/^nigeria$/i.test(p));
+    return parts.slice(-2).join(', ');
+  }
+
+  function setText(sel, value) { $$(sel).forEach(el => { el.textContent = value; }); }
+
+  async function loadCompany() {
+    let company;
+    try {
+      ({ company } = await apiGet('/api/company'));
+    } catch (err) {
+      console.error('Company info unavailable:', err.message);
+      renderCertificate(null);
+      return;
+    }
+    if (!company) { renderCertificate(null); return; }
+
+    if (company.description) $('#aboutDescription').innerHTML = paragraphs(company.description);
+    if (company.mission) $('#aboutMission').textContent = company.mission;
+    if (company.vision) $('#aboutVision').textContent = company.vision;
+
+    if (company.core_values && company.core_values.trim()) {
+      $('#coreValues').innerHTML = company.core_values.split('\n').map(v => v.trim()).filter(Boolean)
+        .map(v => `<li>${escapeHtml(v)}</li>`).join('');
+    }
+
+    if (company.ceo_name) {
+      setText('#ceoName', company.ceo_name.replace(/\b\w+/g, w => w[0] + w.slice(1).toLowerCase()));
+      $('#founderImg').alt = `${company.ceo_name}, founder of ${company.company_name || 'SHEREBOY TECH LTD'}`;
+    }
+    if (company.ceo_title) setText('#ceoTitle', company.ceo_title);
+    if (company.ceo_bio) renderBio(company.ceo_bio);
+
+    const founderImg = $('#founderImg');
+    const photo = safeHref(company.ceo_photo_url);
+    if (photo) {
+      founderImg.hidden = false;
+      founderImg.src = photo;
+      $('#founderMedia').classList.add('media--loading');
+      hydrateMedia($('#founderMedia'));
+    }
+
+    // Registration
+    const rc = (company.cac_number || '').trim();
+    const hasRc = rc && !/^\[.*\]$/.test(rc);
+    if (hasRc) {
+      setText('#regNumber', rc); setText('#footerRc', rc);
+      $('#statRc').textContent = `RC ${rc}`;
+      $('#heroRc').textContent = ` · RC ${rc}`;
+    } else {
+      $('#heroRc').textContent = '';
+      $('#statRc').textContent = 'Registered';
+    }
+    if (company.company_name) setText('#regName', company.company_name);
+    if (company.address && !/^\[.*\]$/.test(company.address)) {
+      setText('#regAddress', company.address);
+      setText('[data-company-text="address"]', company.address.replace(/,\s*Nigeria$/i, ''));
+      const city = cityFromAddress(company.address);
+      if (city) $('#statLocation').textContent = city;
+    }
+    renderCertificate(company.cac_document_url);
+
+    // Contact channels
+    const email = String(company.email || '').replace(/^mailto:/i, '').trim();
+    if (email) {
+      $$('[data-company-link="email"]').forEach(a => { a.href = `mailto:${email}`; });
+      setText('[data-company-text="email"]', email);
+    }
+    if (company.whatsapp) {
+      const wa = intlPhone(company.whatsapp);
+      $$('[data-company-link="whatsapp"]').forEach(a => { a.href = `https://wa.me/${wa}`; });
+      setText('[data-company-text="whatsapp"]', localPhone(company.whatsapp));
+    }
+    if (company.phone) {
+      $$('[data-company-link="phone"]').forEach(a => { a.href = `tel:+${intlPhone(company.phone)}`; });
+      setText('[data-company-text="phone"]', localPhone(company.phone));
+    }
+    $$('[data-social]').forEach(a => {
+      const url = company[a.dataset.social];
+      if (isHttpUrl(url)) { a.href = url.trim(); a.hidden = false; } else { a.hidden = true; }
+    });
+  }
+
+  function renderBio(bio) {
+    const el = $('#ceoBio');
+    const toggle = $('#ceoBioToggle');
+    el.innerHTML = paragraphs(bio);
+    if (bio.length > 520) {
+      el.classList.add('is-clamped');
+      toggle.hidden = false;
+      toggle.addEventListener('click', () => {
+        const expanded = toggle.getAttribute('aria-expanded') === 'true';
+        toggle.setAttribute('aria-expanded', String(!expanded));
+        el.classList.toggle('is-clamped', expanded);
+        toggle.firstChild.textContent = expanded ? 'Read full profile ' : 'Show less ';
       });
     }
-    if (company.email) document.getElementById('contactEmail').href = `mailto:${company.email.replace(/^mailto:/i, '').trim()}`;
-    if (company.whatsapp) document.getElementById('contactWhatsapp').href = `https://wa.me/${company.whatsapp.replace(/\D/g, '')}`;
-    if (company.phone) document.getElementById('contactCall').href = `tel:${company.phone.replace(/^tel:/i, '').trim()}`;
-    showSocialLink('socialInstagram', company.instagram_url);
-    showSocialLink('socialTiktok', company.tiktok_url);
-    showSocialLink('socialYoutube', company.youtube_url);
+  }
 
-    if (company.logo_url) {
-      const navLogo = document.getElementById('navLogo');
-      const footerLogo = document.getElementById('footerLogo');
-      navLogo.onerror = () => { navLogo.hidden = true; };
-      navLogo.onload = () => { navLogo.hidden = false; };
-      navLogo.src = company.logo_url;
-      footerLogo.onerror = () => { footerLogo.hidden = true; };
-      footerLogo.onload = () => { footerLogo.hidden = false; };
-      footerLogo.src = company.logo_url;
+  // ---------- CAC certificate ----------
+  // The original document is displayed exactly as supplied: object-fit: contain
+  // inside the certificate's own aspect ratio — never cropped, filtered or redrawn.
+  let certificateUrl = '';
+  function isPdf(url) { return /\.pdf($|[?#])/i.test(url); }
+  function renderCertificate(url) {
+    const card = $('#certificateCard');
+    const box = $('#certificateMedia');
+    certificateUrl = safeHref(url);
+    if (!certificateUrl) {
+      card.classList.add('certificate--missing');
+      box.innerHTML = `<div class="media__fallback">${icon('doc')}<span>Certificate available on request</span></div>`;
+      $('#certificateOpen').disabled = true;
+      $('#certificateOpen2').hidden = true;
+      return;
     }
-  } catch (err) {
-    // Non-critical section — fail quietly, defaults already shown in markup
-    console.error('Failed to load company info:', err.message);
+    if (isPdf(certificateUrl)) {
+      box.innerHTML = `<div class="media__fallback">${icon('doc')}<span>PDF document · tap to view</span></div>`;
+      return;
+    }
+    box.innerHTML = `<div class="media__fallback">${icon('doc')}<span>Loading certificate…</span></div>
+      <img class="media__img" src="${escapeHtml(certificateUrl)}" alt="SHEREBOY TECH LTD Certificate of Incorporation issued by the Corporate Affairs Commission" loading="lazy" decoding="async">`;
+    box.classList.add('media--loading');
+    const img = $('img', box);
+    img.addEventListener('error', () => {
+      $('.media__fallback span', box).textContent = 'The certificate image could not be loaded. Open the original instead.';
+    }, { once: true });
+    hydrateMedia(box);
   }
-}
-loadCompanyInfo();
+  function openCertificate(opener) {
+    if (!certificateUrl) return;
+    const body = $('#docModalBody');
+    const zoomBtn = $('#docZoom');
+    $('#docOpen').href = certificateUrl;
+    body.classList.remove('is-zoomed');
+    zoomBtn.setAttribute('aria-pressed', 'false');
+    if (isPdf(certificateUrl)) {
+      zoomBtn.hidden = true;
+      body.innerHTML = `<iframe src="${escapeHtml(certificateUrl)}#view=FitH" title="Certificate of Incorporation (PDF)"></iframe>`;
+    } else {
+      zoomBtn.hidden = false;
+      body.innerHTML = `<img src="${escapeHtml(certificateUrl)}" alt="SHEREBOY TECH LTD Certificate of Incorporation issued by the Corporate Affairs Commission">`;
+      $('img', body).addEventListener('click', toggleDocZoom);
+    }
+    openDialog($('#docModal'), { opener });
+  }
+  function toggleDocZoom() {
+    const body = $('#docModalBody');
+    const on = !body.classList.contains('is-zoomed');
+    body.classList.toggle('is-zoomed', on);
+    $('#docZoom').setAttribute('aria-pressed', String(on));
+  }
+  $('#docZoom').addEventListener('click', toggleDocZoom);
+  $('#certificateOpen').addEventListener('click', (e) => openCertificate(e.currentTarget));
+  $('#certificateOpen2').addEventListener('click', (e) => openCertificate(e.currentTarget));
 
-// =========================================================
-// Services
-// =========================================================
-async function loadServices() {
-  const grid = document.getElementById('servicesGrid');
-  grid.innerHTML = skeletonCards(3);
-  try {
-    const { services } = await apiGet('/api/services');
-    if (!services || !services.length) { grid.innerHTML = '<p class="empty-state">Services will be listed here soon.</p>'; return; }
-    grid.innerHTML = services.map((s, i) => `
-      <div class="card card--service reveal reveal-d${Math.min(i % 4, 4)}">
-        <div class="service-card__icon" aria-hidden="true">${iconForService(s)}</div>
-        <h3>${escapeHtml(s.title)}</h3>
-        <p>${escapeHtml(s.description || '')}</p>
+  // =========================================================
+  // Services
+  // =========================================================
+  const SERVICE_TYPES = [
+    { test: /mobile|android|\bios\b/i, icon: 'mobile', type: 'Mobile application' },
+    // Case-sensitive "AI" so words like "maintenance" don't match
+    { test: /\bAI\b|[Aa]rtificial|[Aa]utomat|[Ii]ntelligen/, icon: 'spark', type: 'Something else' },
+    { test: /\bapi\b|integration/i, icon: 'api', type: 'API / integration' },
+    { test: /maint|support|care/i, icon: 'support', type: 'Maintenance & support' },
+    { test: /commerce|shop|affiliate|store/i, icon: 'cart', type: 'Website' },
+    { test: /management|system|erp|crm|inventory/i, icon: 'system', type: 'Business management system' },
+    { test: /custom software|full.?stack|software/i, icon: 'code', type: 'Custom software' },
+    { test: /web\s*app|application|portal|dashboard/i, icon: 'app', type: 'Web application' },
+    { test: /web|site/i, icon: 'web', type: 'Website' }
+  ];
+  function serviceMeta(s) {
+    const hay = `${s.icon || ''} ${s.title || ''}`;
+    return SERVICE_TYPES.find(m => m.test.test(hay)) || { icon: 'layers', type: 'Something else' };
+  }
+
+  async function loadServices() {
+    const list = $('#servicesList');
+    list.innerHTML = '<div class="skeleton skeleton--service"></div><div class="skeleton skeleton--service"></div><div class="skeleton skeleton--service"></div>';
+    try {
+      const { services } = await apiGet('/api/services');
+      const items = services || [];
+      animateCount($('#statServices'), items.length);
+      if (!items.length) { list.innerHTML = '<p class="empty-state">Our services will be listed here shortly.</p>'; return; }
+      list.innerHTML = items.map((s, i) => {
+        const meta = serviceMeta(s);
+        const benefits = Array.isArray(s.benefits) ? s.benefits.filter(Boolean) : [];
+        const wide = items.length % 2 === 1 && i === 0;
+        return `<article class="service reveal ${wide ? 'service--wide' : ''}">
+          <span class="service__icon">${icon(meta.icon)}</span>
+          <span class="service__num">${String(i + 1).padStart(2, '0')}</span>
+          <h3>${escapeHtml(s.title)}</h3>
+          <p class="service__desc">${escapeHtml(s.description || '')}</p>
+          ${benefits.length ? `<ul class="service__benefits">${benefits.map(b => `<li>${icon('check')}<span>${escapeHtml(b)}</span></li>`).join('')}</ul>` : ''}
+          <a href="/#contact" class="link-btn service__cta" data-start-project data-project-type="${escapeHtml(meta.type)}">Discuss this service ${icon('arrow')}</a>
+        </article>`;
+      }).join('');
+      $('#footerServices').innerHTML = items.slice(0, 5).map(s => `<a href="/#services">${escapeHtml(s.title)}</a>`).join('');
+      observeReveals(list);
+    } catch (err) {
+      list.innerHTML = errorState('We could not load our services right now.', 'services');
+    }
+  }
+
+  // =========================================================
+  // Projects / portfolio
+  // =========================================================
+  const CATEGORY_GROUPS = ['Websites', 'Web Applications', 'Mobile Applications', 'Business Software', 'Other Projects'];
+  function categoryGroup(category) {
+    const c = String(category || '').trim();
+    const exact = CATEGORY_GROUPS.find(g => g.toLowerCase() === c.toLowerCase());
+    if (exact) return exact;
+    if (/mobile|android|\bios\b/i.test(c)) return 'Mobile Applications';
+    if (/web\s*app|application|platform|portal|dashboard|saas/i.test(c)) return 'Web Applications';
+    if (/business|management|erp|crm|inventory|\bpos\b|software|system/i.test(c)) return 'Business Software';
+    if (/web\s*site|site|landing|church|portfolio/i.test(c)) return 'Websites';
+    return 'Other Projects';
+  }
+  const STATUS_LABELS = { completed: 'Completed', in_progress: 'In progress', maintenance: 'Ongoing support' };
+
+  let projects = [];
+  let activeFilter = 'All';
+
+  async function loadProjects() {
+    const grid = $('#workGrid');
+    grid.innerHTML = '<div class="skeleton skeleton--project skeleton--wide"></div><div class="skeleton skeleton--project"></div><div class="skeleton skeleton--project"></div>';
+    try {
+      const data = await apiGet('/api/projects?limit=50');
+      projects = data.projects || [];
+      animateCount($('#statProjects'), data.total ?? projects.length);
+      renderFilters();
+      renderProjects();
+      routeFromLocation();
+    } catch (err) {
+      grid.innerHTML = errorState('We could not load our projects right now.', 'projects');
+    }
+  }
+
+  function renderFilters() {
+    const wrap = $('#workFilters');
+    const counts = {};
+    projects.forEach(p => { const g = categoryGroup(p.category); counts[g] = (counts[g] || 0) + 1; });
+    const groups = CATEGORY_GROUPS.filter(g => counts[g]);
+    // Filtering only helps when there is more than one category with projects
+    if (groups.length < 2) { wrap.hidden = true; return; }
+    wrap.hidden = false;
+    wrap.innerHTML = [['All', projects.length], ...groups.map(g => [g, counts[g]])].map(([g, n]) =>
+      `<button type="button" class="filter ${g === activeFilter ? 'is-active' : ''}" role="tab" aria-selected="${g === activeFilter}" data-filter="${escapeHtml(g)}">${escapeHtml(g)} <span>${n}</span></button>`
+    ).join('');
+  }
+  $('#workFilters').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-filter]');
+    if (!btn) return;
+    activeFilter = btn.dataset.filter;
+    $$('.filter', e.currentTarget).forEach(b => { const on = b === btn; b.classList.toggle('is-active', on); b.setAttribute('aria-selected', String(on)); });
+    renderProjects();
+  });
+
+  function canPreview(p) { return !!safeHref(p.live_url) && p.preview_enabled !== false; }
+
+  function projectCard(p, lead) {
+    const status = STATUS_LABELS[p.status] || STATUS_LABELS.completed;
+    const tech = (p.technologies || []).slice(0, lead ? 8 : 5);
+    return `<article class="project reveal ${lead ? 'project--lead' : ''}">
+      <div class="project__media" data-open-project="${escapeHtml(p.id)}" aria-hidden="true">
+        <div class="project__badges">
+          ${p.featured ? `<span class="badge badge--featured">${icon('star')}Featured</span>` : '<span></span>'}
+          <span class="badge status status--${escapeHtml(p.status || 'completed')}">${status}</span>
+        </div>
+        ${mediaHtml({ src: p.image_url, alt: '', fallback: 'image' })}
       </div>
-    `).join('');
-    observeReveals(grid);
-  } catch (err) {
-    grid.innerHTML = errorRow('Unable to load services right now.', 'loadServices');
-  }
-}
-loadServices();
-
-// =========================================================
-// Projects
-// =========================================================
-async function loadProjects() {
-  const grid = document.getElementById('projectsGrid');
-  grid.innerHTML = skeletonCards(3);
-  try {
-    const { projects } = await apiGet('/api/projects?featured=true&limit=6');
-    const list = projects || [];
-    if (!list.length) { grid.innerHTML = '<p class="empty-state empty-state--onDark">Projects will be showcased here soon.</p>'; return; }
-    grid.innerHTML = list.map((p, i) => `
-      <div class="project-card reveal reveal-d${Math.min(i % 4, 4)}">
-        ${mediaImg({ src: p.image_url, alt: p.title, className: 'media--project' })}
-        <div class="project-card__body">
-          <p class="project-card__cat">${escapeHtml(p.category || 'Web Project')}</p>
-          <h3>${escapeHtml(p.title)}</h3>
-          <p>${escapeHtml(p.description || '')}</p>
-          <div class="project-card__tech">${(p.technologies || []).map(t => `<span class="tech-chip">${escapeHtml(t)}</span>`).join('')}</div>
-          ${p.live_url ? `<a class="project-card__link" href="${escapeHtml(p.live_url)}" target="_blank" rel="noopener" aria-label="View live project: ${escapeHtml(p.title)} (opens in a new tab)">View live project ${ICONS.externalLink}</a>` : ''}
+      <div class="project__body">
+        <p class="project__cat">${escapeHtml(p.category || categoryGroup(p.category))}</p>
+        <h3 class="project__title"><button type="button" data-open-project="${escapeHtml(p.id)}">${escapeHtml(p.title)}</button></h3>
+        <p class="project__desc">${escapeHtml((p.description || '').split('\n').filter(Boolean)[0] || '')}</p>
+        ${tech.length ? `<div class="chips" aria-label="Technologies used">${tech.map(t => `<span class="chip">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+        <div class="project__actions">
+          <button type="button" class="btn btn--ghost btn--sm" data-open-project="${escapeHtml(p.id)}">View Project</button>
+          ${canPreview(p) ? `<button type="button" class="btn btn--primary btn--sm" data-preview-project="${escapeHtml(p.id)}">${icon('eye')}Live Preview</button>` : ''}
         </div>
       </div>
-    `).join('');
-    observeReveals(grid);
-  } catch (err) {
-    grid.innerHTML = errorRow('Unable to load projects right now.', 'loadProjects');
+    </article>`;
   }
-}
-loadProjects();
 
-// =========================================================
-// Reviews
-// =========================================================
-async function loadReviews() {
-  const grid = document.getElementById('reviewsGrid');
-  grid.innerHTML = skeletonCards(3);
-  try {
-    const { reviews } = await apiGet('/api/reviews');
-    if (!reviews || !reviews.length) { grid.innerHTML = '<p class="empty-state">Client reviews will appear here soon.</p>'; return; }
-    grid.innerHTML = reviews.map((r, i) => {
-      const rating = Math.min(Math.max(parseInt(r.rating, 10) || 5, 1), 5);
-      const stars = ICONS.star.repeat(rating) + ICONS.starEmpty.repeat(5 - rating);
-      return `
-      <div class="card review-card reveal reveal-d${Math.min(i % 4, 4)}">
-        <div class="review-card__stars" role="img" aria-label="${rating} out of 5 stars">${stars}</div>
-        <p class="review-card__text">"${escapeHtml(r.review_text)}"</p>
-        <p class="review-card__name">${escapeHtml(r.client_name || 'Anonymous client')}</p>
-        <p class="review-card__pos">${escapeHtml(r.client_position || '')}</p>
-      </div>
-    `;
-    }).join('');
+  function renderProjects() {
+    const grid = $('#workGrid');
+    const list = activeFilter === 'All' ? projects : projects.filter(p => categoryGroup(p.category) === activeFilter);
+    if (!list.length) {
+      grid.innerHTML = '<p class="empty-state">New projects will be showcased here soon.</p>';
+      return;
+    }
+    // The first project gets the editorial "lead" layout when there's an odd number of cards
+    grid.innerHTML = list.map((p, i) => projectCard(p, i === 0 && list.length % 2 === 1)).join('');
+    hydrateMedia(grid);
     observeReveals(grid);
-  } catch (err) {
-    grid.innerHTML = errorRow('Unable to load reviews right now.', 'loadReviews');
   }
-}
-loadReviews();
 
-// =========================================================
-// Blog
-// =========================================================
-async function loadBlog() {
-  const grid = document.getElementById('blogGrid');
-  grid.innerHTML = skeletonCards(3);
-  try {
-    const { posts } = await apiGet('/api/blog?limit=3');
-    if (!posts || !posts.length) { grid.innerHTML = '<p class="empty-state">Blog posts will appear here soon.</p>'; return; }
-    grid.innerHTML = posts.map((p, i) => `
-      <div class="card reveal reveal-d${Math.min(i % 4, 4)}">
-        ${mediaImg({ src: p.featured_image_url, alt: p.title, className: 'media--blog', fallbackIcon: ICONS.post })}
-        <p class="blog-card__meta">${new Date(p.created_at).toLocaleDateString()} · ${escapeHtml(p.author || 'SHEREBOY TECH LTD')}</p>
-        <h3>${escapeHtml(p.title)}</h3>
-        <p>${escapeHtml(p.excerpt || '')}</p>
-        <a class="blog-card__link" href="/blog/${escapeHtml(p.slug)}" data-slug="${escapeHtml(p.slug)}">Read post ${ICONS.arrowRight}</a>
-      </div>
-    `).join('');
-    grid.querySelectorAll('[data-slug]').forEach(a => {
-      a.addEventListener('click', (e) => { e.preventDefault(); openPost(a.dataset.slug, { openerEl: a }); });
+  document.addEventListener('click', (e) => {
+    const openBtn = e.target.closest('[data-open-project]');
+    if (openBtn) { openProject(openBtn.dataset.openProject, { opener: openBtn }); return; }
+    const prevBtn = e.target.closest('[data-preview-project]');
+    if (prevBtn) {
+      const p = projects.find(x => x.id === prevBtn.dataset.previewProject);
+      if (p) openPreview(p, prevBtn);
+    }
+  });
+
+  // ---------- Project details modal (/projects/:id) ----------
+  const projectModal = $('#projectModal');
+  function openProject(id, { opener, pushHistory = true } = {}) {
+    const p = projects.find(x => x.id === id);
+    if (!p) return false;
+    const live = safeHref(p.live_url);
+    const repo = safeHref(p.github_url);
+    $('#projectModalBody').innerHTML = `
+      ${mediaHtml({ src: p.image_url, alt: `${p.title} — screenshot`, className: 'pd__media', eager: true })}
+      <div class="pd__body">
+        <p class="project__cat">${escapeHtml(p.category || categoryGroup(p.category))}</p>
+        <h2 class="pd__title" id="projectModalTitle">${escapeHtml(p.title)}</h2>
+        <dl class="pd__facts">
+          <div><dt>Status</dt><dd><span class="status status--${escapeHtml(p.status || 'completed')}">${STATUS_LABELS[p.status] || 'Completed'}</span></dd></div>
+          ${p.client_name ? `<div><dt>Client</dt><dd>${escapeHtml(p.client_name)}</dd></div>` : ''}
+          ${p.completion_date ? `<div><dt>Completed</dt><dd>${formatDate(p.completion_date, { month: 'long', year: 'numeric' })}</dd></div>` : ''}
+          ${live ? `<div><dt>Website</dt><dd>${escapeHtml(hostOf(live))}</dd></div>` : ''}
+        </dl>
+        <div class="pd__desc">${paragraphs(p.description)}</div>
+        ${(p.technologies || []).length ? `<div><h3 class="sub-title">Technologies used</h3><div class="chips">${p.technologies.map(t => `<span class="chip">${escapeHtml(t)}</span>`).join('')}</div></div>` : ''}
+        <div class="pd__actions">
+          ${canPreview(p) ? `<button type="button" class="btn btn--primary" data-preview-project="${escapeHtml(p.id)}">${icon('eye')}Live Preview</button>` : ''}
+          ${live ? `<a class="btn btn--ghost" href="${escapeHtml(live)}" target="_blank" rel="noopener">Visit Website ${icon('external')}</a>` : ''}
+          ${repo ? `<a class="btn btn--ghost" href="${escapeHtml(repo)}" target="_blank" rel="noopener">${icon('github')}View Source</a>` : ''}
+          <a class="btn btn--ghost" href="/#contact" data-start-project>Start a similar project</a>
+        </div>
+      </div>`;
+    hydrateMedia(projectModal);
+    $('#projectModalBody').scrollTop = 0;
+    openDialog(projectModal, {
+      opener,
+      onClose: () => { if (/^\/projects\//.test(location.pathname)) history.pushState({}, '', '/#work'); }
     });
-    observeReveals(grid);
-  } catch (err) {
-    grid.innerHTML = errorRow('Unable to load blog posts right now.', 'loadBlog');
+    $('.modal__panel', projectModal).scrollTop = 0;
+    if (pushHistory && location.pathname !== `/projects/${id}`) history.pushState({ project: id }, '', `/projects/${id}`);
+    return true;
   }
-}
-loadBlog();
+  // Closing via a CTA inside the modal
+  projectModal.addEventListener('click', (e) => {
+    if (e.target.closest('[data-start-project]')) closeDialog(projectModal, { restoreFocus: false });
+  });
 
-// =========================================================
-// Blog post modal
-// =========================================================
-const postModal = document.getElementById('postModal');
-const postModalContent = document.getElementById('postModalContent');
-let postModalOpener = null;
+  // ---------- Live preview ----------
+  const previewModal = $('#previewModal');
+  const previewWrap = $('#previewFrameWrap');
+  const previewState = $('#previewState');
+  const previewDevice = $('#previewDevice');
+  const preview = { project: null, token: 0, timers: [] };
+  const DEVICE_KEY = 'shereboy_preview_device';
 
-async function openPost(slug, { openerEl = null, pushHistory = true } = {}) {
-  postModalOpener = openerEl || document.activeElement;
-  postModalContent.innerHTML = loadingRow('Loading post…', false);
-  postModal.hidden = false;
-  document.body.classList.add('menu-open');
-  requestAnimationFrame(() => document.getElementById('postModalClose')?.focus());
+  function clearPreviewTimers() { preview.timers.forEach(clearTimeout); preview.timers = []; }
 
-  try {
-    const { post } = await apiGet(`/api/blog/${encodeURIComponent(slug)}`);
-    postModalContent.innerHTML = `
-      ${post.featured_image_url ? mediaImg({ src: post.featured_image_url, alt: post.title, className: 'media--blog', fallbackIcon: ICONS.post, lazy: false }) : ''}
-      <h2>${escapeHtml(post.title)}</h2>
-      <p class="post-meta">${new Date(post.created_at).toLocaleDateString()} · ${escapeHtml(post.author || 'SHEREBOY TECH LTD')}</p>
-      <div class="post-body">${formatPostContent(post.content)}</div>
-    `;
+  function setDevice(device) {
+    previewDevice.dataset.device = device;
+    $$('[data-device]', previewModal).forEach(b => {
+      if (b === previewDevice) return;
+      const on = b.dataset.device === device;
+      b.classList.toggle('is-active', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    try { localStorage.setItem(DEVICE_KEY, device); } catch { /* storage unavailable */ }
+  }
+  $$('.preview__devices [data-device]').forEach(b => b.addEventListener('click', () => setDevice(b.dataset.device)));
+
+  function showPreviewState(html) { previewState.innerHTML = html; previewState.hidden = false; }
+  function hidePreviewState() { previewState.hidden = true; previewState.innerHTML = ''; }
+
+  function loadingState(text) {
+    return `<div class="preview__loader" aria-hidden="true"></div>
+      <h3>${escapeHtml(text)}</h3>
+      <p id="previewHint">Loading ${escapeHtml(hostOf(preview.project.live_url))}</p>
+      <div class="preview__progress" aria-hidden="true"><span></span></div>`;
+  }
+
+  function fallbackState({ title, message, warn = true, retry = true, wait = false }) {
+    const p = preview.project;
+    const live = safeHref(p.live_url);
+    showPreviewState(`
+      ${p.image_url ? mediaHtml({ src: p.image_url, alt: `${p.title} — screenshot`, className: 'preview__state-thumb', eager: true }) : `<span class="state-icon ${warn ? 'state-icon--warn' : ''}">${icon(warn ? 'lock' : 'web')}</span>`}
+      <h3>${escapeHtml(title)}</h3>
+      <p>${escapeHtml(message)}</p>
+      <div class="preview__state-actions">
+        <a class="btn btn--primary" href="${escapeHtml(live)}" target="_blank" rel="noopener">Open Website in New Tab ${icon('external')}</a>
+        ${wait ? '<button type="button" class="btn btn--ghost" data-preview-wait>Keep waiting</button>' : ''}
+        ${retry ? `<button type="button" class="btn btn--ghost" data-preview-retry>${icon('refresh')}Try again</button>` : ''}
+      </div>`);
+    hydrateMedia(previewState);
+  }
+  previewState.addEventListener('click', (e) => {
+    if (e.target.closest('[data-preview-retry]')) loadPreview({ fresh: true });
+    if (e.target.closest('[data-preview-wait]')) {
+      showPreviewState(loadingState('Still loading…'));
+      armTimeout(preview.token, 30000);
+    }
+  });
+
+  function armTimeout(token, ms) {
+    clearPreviewTimers();
+    preview.timers.push(setTimeout(() => {
+      if (token !== preview.token) return;
+      const hint = $('#previewHint');
+      if (hint) hint.textContent = 'Some websites take a few seconds to start up — thanks for your patience.';
+    }, Math.min(8000, ms / 2)));
+    preview.timers.push(setTimeout(() => {
+      if (token !== preview.token) return;
+      fallbackState({
+        title: 'This website is taking longer than expected',
+        message: 'It may be starting up or experiencing a slow connection. You can keep waiting, try again, or open it in a new tab.',
+        wait: true
+      });
+    }, ms));
+  }
+
+  function blockedState(p, disabled) {
+    fallbackState({
+      title: disabled ? 'Live preview is not available for this project' : 'This website can\'t be displayed inside another site',
+      message: disabled
+        ? 'You can still visit the website directly.'
+        : `For security, ${hostOf(p.live_url)} only allows itself to be shown on its own domain. Open it in a new tab to explore the live site.`,
+      retry: false
+    });
+  }
+
+  async function loadPreview({ fresh = false } = {}) {
+    const p = preview.project;
+    const token = ++preview.token;
+    clearPreviewTimers();
+    previewWrap.innerHTML = '';
+    showPreviewState(loadingState('Preparing live preview…'));
+
+    let check = { embeddable: null };
+    try {
+      check = await apiGet(`/api/projects/${encodeURIComponent(p.id)}/preview-check${fresh ? '?r=' + Date.now() : ''}`);
+    } catch { /* treat as unknown — we still try the frame */ }
+    if (token !== preview.token) return;
+
+    if (check.embeddable === false) {
+      blockedState(p, check.disabled);
+      return;
+    }
+
+    showPreviewState(loadingState('Loading website…'));
+    const iframe = document.createElement('iframe');
+    iframe.title = `Live preview of ${p.title}`;
+    // Only what a normal website needs to run; no top-level navigation of our page
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox');
+    iframe.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+    iframe.setAttribute('allow', 'fullscreen');
+    iframe.addEventListener('load', async () => {
+      if (token !== preview.token) return;
+      clearPreviewTimers();
+      // Browsers fire "load" even when a site refuses to be framed, so if we
+      // could not confirm embedding up-front, re-check now that the site is awake.
+      if (check.embeddable === null) {
+        let again = { embeddable: null };
+        try { again = await apiGet(`/api/projects/${encodeURIComponent(p.id)}/preview-check?r=${Date.now()}`); } catch { /* keep unknown */ }
+        if (token !== preview.token) return;
+        if (again.embeddable === false) {
+          previewWrap.innerHTML = '';
+          blockedState(p);
+          return;
+        }
+      }
+      hidePreviewState();
+    });
+    iframe.src = safeHref(p.live_url);
+    previewWrap.appendChild(iframe);
+    // Sleeping hosts (unknown status) get longer before we call it slow
+    armTimeout(token, check.embeddable === null ? 45000 : 20000);
+  }
+
+  function openPreview(project, opener) {
+    preview.project = project;
+    const live = safeHref(project.live_url);
+    $('#previewTitle').textContent = project.title;
+    $('#previewUrl').textContent = hostOf(live);
+    $('#previewNewTab').href = live;
+    let device = 'desktop';
+    try { device = localStorage.getItem(DEVICE_KEY) || (innerWidth < 700 ? 'mobile' : 'desktop'); } catch { /* ignore */ }
+    setDevice(device);
+    // The preview sits above the details modal if that is open
+    openDialog(previewModal, {
+      opener,
+      onClose: () => {
+        preview.token += 1;
+        clearPreviewTimers();
+        previewWrap.innerHTML = '';
+        hidePreviewState();
+        if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+      }
+    });
+    loadPreview();
+  }
+  $('#previewClose').addEventListener('click', () => closeDialog(previewModal));
+  $('#previewRefresh').addEventListener('click', () => loadPreview({ fresh: true }));
+  $('#previewFullscreen').addEventListener('click', () => {
+    if (!document.fullscreenEnabled) { showToast('Full screen is not supported on this device.', 'info'); return; }
+    if (document.fullscreenElement) document.exitFullscreen();
+    else previewModal.requestFullscreen?.().catch(() => showToast('Full screen was blocked by your browser.', 'error'));
+  });
+  document.addEventListener('fullscreenchange', () => {
+    const on = !!document.fullscreenElement;
+    $('#previewFullscreen').innerHTML = icon(on ? 'shrink' : 'expand');
+    $('#previewFullscreen').setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+  });
+
+  // =========================================================
+  // Reviews (only real, published reviews; section stays hidden otherwise)
+  // =========================================================
+  function reviewText(text) {
+    // Reviews may contain simple **bold** markdown — escape first, then format
+    return String(text || '').split(/\n\s*\n|\n/).map(t => t.trim()).filter(Boolean)
+      .map(t => `<p>${escapeHtml(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}</p>`).join('');
+  }
+  async function loadReviews() {
+    try {
+      const { reviews } = await apiGet('/api/reviews');
+      if (!reviews || !reviews.length) return;
+      const list = $('#reviewsList');
+      list.classList.toggle('reviews--single', reviews.length === 1);
+      list.innerHTML = reviews.slice(0, 6).map(r => {
+        const rating = Math.min(Math.max(parseInt(r.rating, 10) || 5, 1), 5);
+        return `<figure class="review reveal">
+          <div class="review__stars" role="img" aria-label="Rated ${rating} out of 5">${icon('star').repeat(rating)}${icon('star', 'is-empty').repeat(5 - rating)}</div>
+          <blockquote class="review__text">${reviewText(r.review_text)}</blockquote>
+          <figcaption class="review__who">
+            ${mediaHtml({ src: r.client_image_url, alt: '', className: 'review__avatar', fallback: 'user' })}
+            <div><strong>${escapeHtml(r.client_name)}</strong><span>${escapeHtml(r.client_position || '')}</span></div>
+          </figcaption>
+        </figure>`;
+      }).join('');
+      $('#reviews').hidden = false;
+      hydrateMedia(list);
+      observeReveals($('#reviews'));
+    } catch { /* optional section — stays hidden */ }
+  }
+
+  // =========================================================
+  // Insights (blog)
+  // =========================================================
+  async function loadInsights() {
+    const hideInsights = () => ['#navInsights', '#drawerInsights', '#footerInsights'].forEach(s => { const el = $(s); if (el) el.hidden = true; });
+    try {
+      const { posts } = await apiGet('/api/blog?limit=3');
+      if (!posts || !posts.length) { hideInsights(); return; }
+      const list = $('#insightsList');
+      list.classList.toggle('insights--3', posts.length >= 3);
+      list.innerHTML = posts.map(p => `
+        <a class="post-card reveal" href="/blog/${encodeURIComponent(p.slug)}" data-slug="${escapeHtml(p.slug)}">
+          ${mediaHtml({ src: p.featured_image_url, alt: '', fallback: 'doc' })}
+          <div class="post-card__body">
+            <span class="post-card__meta">${formatDate(p.created_at)} · ${escapeHtml(p.author || 'SHEREBOY TECH LTD')}</span>
+            <h3>${escapeHtml(p.title)}</h3>
+            <p>${escapeHtml(p.excerpt || '')}</p>
+            <span class="post-card__more">Read article ${icon('arrow')}</span>
+          </div>
+        </a>`).join('');
+      $('#insights').hidden = false;
+      hydrateMedia(list);
+      observeReveals($('#insights'));
+    } catch {
+      hideInsights();
+    }
+  }
+  $('#insightsList').addEventListener('click', (e) => {
+    const a = e.target.closest('[data-slug]');
+    if (!a || e.metaKey || e.ctrlKey) return;
+    e.preventDefault();
+    openPost(a.dataset.slug, { opener: a });
+  });
+
+  // Blog content sanitization — strips scripts / event handlers / unsafe URLs
+  const ALLOWED_TAGS = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'A', 'UL', 'OL', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'CODE', 'IMG', 'SPAN', 'DIV', 'HR', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TD', 'TH', 'FIGURE', 'FIGCAPTION']);
+  const ALLOWED_ATTRS = { A: ['href', 'title'], IMG: ['src', 'alt', 'title'] };
+  function sanitizeHtml(html) {
+    const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+    const walk = (node) => {
+      Array.from(node.childNodes).forEach(child => {
+        if (child.nodeType === Node.ELEMENT_NODE) {
+          if (!ALLOWED_TAGS.has(child.tagName)) { child.replaceWith(...Array.from(child.childNodes)); return; }
+          Array.from(child.attributes).forEach(attr => {
+            const allowed = ALLOWED_ATTRS[child.tagName] || [];
+            const unsafeUrl = /^(href|src)$/i.test(attr.name) && !safeHref(attr.value) && !/^mailto:|^tel:/i.test(attr.value);
+            if (!allowed.includes(attr.name.toLowerCase()) || unsafeUrl) child.removeAttribute(attr.name);
+          });
+          if (child.tagName === 'A') { child.setAttribute('target', '_blank'); child.setAttribute('rel', 'noopener noreferrer'); }
+          if (child.tagName === 'IMG') child.setAttribute('loading', 'lazy');
+          walk(child);
+        } else if (child.nodeType !== Node.TEXT_NODE) {
+          child.remove();
+        }
+      });
+    };
+    walk(doc.body);
+    return doc.body.innerHTML;
+  }
+  function formatPostContent(raw) {
+    const str = String(raw || '');
+    if (/<(p|div|h[1-6]|ul|ol|li|blockquote|pre|table|figure)\b/i.test(str)) return sanitizeHtml(str);
+    return sanitizeHtml(str.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean)
+      .map(b => /^-{3,}$/.test(b) ? '<hr>' : `<p>${escapeHtml(b).replace(/\n/g, '<br>')}</p>`).join(''));
+  }
+
+  const postModal = $('#postModal');
+  const DEFAULT_TITLE = document.title;
+  async function openPost(slug, { opener, pushHistory = true } = {}) {
+    const content = $('#postModalContent');
+    content.innerHTML = '<div class="loading-row"><span class="spinner" aria-hidden="true"></span>Loading article…</div>';
+    openDialog(postModal, {
+      opener,
+      onClose: () => {
+        document.title = DEFAULT_TITLE;
+        if (/^\/blog\//.test(location.pathname)) history.pushState({}, '', '/#insights');
+      }
+    });
     if (pushHistory) history.pushState({ slug }, '', `/blog/${slug}`);
-  } catch (err) {
-    postModalContent.innerHTML = `
-      <div class="post-state">
-        ${ICONS.warning}
-        <p>Sorry, that post could not be found or is no longer available.</p>
-        <button type="button" class="btn btn--outline" id="postModalBack">Back to blog</button>
-      </div>
-    `;
-    document.getElementById('postModalBack')?.addEventListener('click', closePost);
-    if (pushHistory) history.pushState({ slug }, '', `/blog/${slug}`);
-    showToast('Could not load that post.', 'error');
+    try {
+      const { post } = await apiGet(`/api/blog/${encodeURIComponent(slug)}`);
+      content.innerHTML = `
+        ${post.featured_image_url ? mediaHtml({ src: post.featured_image_url, alt: post.title, eager: true }) : ''}
+        <div class="post-view">
+          <h2 id="postModalTitle">${escapeHtml(post.title)}</h2>
+          <span class="post-card__meta">${formatDate(post.created_at)} · ${escapeHtml(post.author || 'SHEREBOY TECH LTD')}</span>
+          <div class="post-body">${formatPostContent(post.content)}</div>
+        </div>`;
+      document.title = `${post.title} — SHEREBOY TECH LTD`;
+      hydrateMedia(content);
+    } catch {
+      content.innerHTML = `<div class="post-state">${icon('warning')}<p id="postModalTitle">Sorry, this article could not be found or is no longer available.</p>
+        <button type="button" class="btn btn--ghost" data-close-modal>Back to the website</button></div>`;
+    }
   }
-}
-document.getElementById('postModalClose')?.addEventListener('click', () => closePost());
-document.getElementById('postModalBackdrop')?.addEventListener('click', () => closePost());
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && postModal && !postModal.hidden) closePost();
-});
 
-function closePost({ pushHistory = true } = {}) {
-  if (postModal.hidden) return;
-  postModal.hidden = true;
-  document.body.classList.remove('menu-open');
-  if (pushHistory && window.location.pathname !== '/') history.pushState({}, '', '/');
-  if (postModalOpener && typeof postModalOpener.focus === 'function') postModalOpener.focus();
-  postModalOpener = null;
-}
-
-// Back/forward navigation keeps the modal in sync with the URL
-window.addEventListener('popstate', () => {
-  const match = window.location.pathname.match(/^\/blog\/([a-z0-9-]+)$/i);
-  if (match) {
-    openPost(match[1], { pushHistory: false });
-  } else if (!postModal.hidden) {
-    closePost({ pushHistory: false });
+  // =========================================================
+  // Client-side routes: /projects/:id and /blog/:slug
+  // =========================================================
+  function routeFromLocation() {
+    const projectMatch = location.pathname.match(/^\/projects\/([\w-]+)\/?$/);
+    const blogMatch = location.pathname.match(/^\/blog\/([a-z0-9-]+)\/?$/i);
+    if (projectMatch) {
+      if (projects.length && !openProject(projectMatch[1], { pushHistory: false })) {
+        showToast('That project could not be found.', 'error');
+        history.replaceState({}, '', '/#work');
+      }
+    } else if (!projectModal.hidden) {
+      closeDialog(projectModal, { restoreFocus: false });
+    }
+    if (blogMatch) {
+      if (postModal.hidden) openPost(blogMatch[1], { pushHistory: false });
+    } else if (!postModal.hidden) {
+      closeDialog(postModal, { restoreFocus: false });
+    }
   }
-});
+  window.addEventListener('popstate', routeFromLocation);
 
-// Deep-link support: if the page loads on /blog/:slug, open it directly
-const blogMatch = window.location.pathname.match(/^\/blog\/([a-z0-9-]+)$/i);
-if (blogMatch) openPost(blogMatch[1], { pushHistory: false });
+  // =========================================================
+  // Project enquiry form
+  // =========================================================
+  const form = $('#enquiryForm');
+  const status = $('#enquiryStatus');
+  const submitBtn = $('#enquirySubmit');
+  const message = $('#efMessage');
+  const VALIDATORS = {
+    efName: (v) => v.trim().length >= 2 ? '' : 'Please enter your full name.',
+    efEmail: (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? '' : 'Please enter a valid email address.',
+    efPhone: (v) => !v.trim() || /^[+()\d\s-]{7,20}$/.test(v.trim()) ? '' : 'Please enter a valid phone number.',
+    efType: (v) => v ? '' : 'Please choose the type of project.',
+    efMessage: (v) => v.trim().length >= 10 ? '' : 'Please describe your project (at least 10 characters).'
+  };
+  function setFieldError(input, msg) {
+    const field = input.closest('.field');
+    field.classList.toggle('has-error', !!msg);
+    const err = $(`#${input.id}Error`);
+    if (err) err.textContent = msg;
+    input.setAttribute('aria-invalid', msg ? 'true' : 'false');
+    if (msg) input.setAttribute('aria-describedby', `${input.id}Error`); else input.removeAttribute('aria-describedby');
+  }
+  function clearFieldError(input) { setFieldError(input, ''); }
+  Object.keys(VALIDATORS).forEach(id => {
+    const input = $(`#${id}`);
+    input.addEventListener('blur', () => { if (input.value) setFieldError(input, VALIDATORS[id](input.value)); });
+    input.addEventListener('input', () => { if (input.closest('.field').classList.contains('has-error')) setFieldError(input, VALIDATORS[id](input.value)); });
+  });
+  message.addEventListener('input', () => { $('#efCount').textContent = `${message.value.length} / 3000`; });
 
-// =========================================================
-// AI Chat
-// =========================================================
-const aiChatForm = document.getElementById('aiChatForm');
-const aiChatInput = document.getElementById('aiChatInput');
-const aiChatLog = document.getElementById('aiChatLog');
-const aiChatSendBtn = aiChatForm?.querySelector('button[type="submit"]');
-const AI_HISTORY_KEY = 'shereboy_ai_chat_history';
-let chatHistory = [];
-let lastUserMessage = '';
-let aiSending = false;
+  let submitting = false;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+    status.hidden = true;
+    let firstInvalid = null;
+    Object.entries(VALIDATORS).forEach(([id, fn]) => {
+      const input = $(`#${id}`);
+      const msg = fn(input.value);
+      setFieldError(input, msg);
+      if (msg && !firstInvalid) firstInvalid = input;
+    });
+    if (firstInvalid) {
+      firstInvalid.focus();
+      form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake');
+      return;
+    }
+    submitting = true;
+    setButtonLoading(submitBtn, true, 'Sending…');
+    const payload = {
+      name: $('#efName').value.trim(),
+      email: $('#efEmail').value.trim(),
+      phone: $('#efPhone').value.trim(),
+      project_type: $('#efType').value,
+      message: message.value.trim(),
+      website: $('#efWebsite').value
+    };
+    try {
+      const res = await fetch('/api/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'We could not send your enquiry. Please try again.');
+      status.className = 'form-status form-status--success';
+      status.innerHTML = `${icon('check')}<span>${escapeHtml(data.message || 'Thank you — your enquiry has been received.')}</span>`;
+      status.hidden = false;
+      form.reset();
+      $('#efCount').textContent = '0 / 3000';
+      showToast('Enquiry sent successfully.', 'success');
+    } catch (err) {
+      const msg = err.message === 'Failed to fetch' ? 'You appear to be offline. Please check your connection and try again.' : err.message;
+      status.className = 'form-status form-status--error';
+      status.innerHTML = `${icon('warning')}<span>${escapeHtml(msg)}</span>`;
+      status.hidden = false;
+      form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake');
+    } finally {
+      submitting = false;
+      setButtonLoading(submitBtn, false);
+    }
+  });
 
-function appendMsg(text, cls) {
-  const div = document.createElement('div');
-  div.className = `ai-msg ${cls}`;
-  div.textContent = text;
-  aiChatLog.appendChild(div);
-  aiChatLog.scrollTop = aiChatLog.scrollHeight;
-  return div;
-}
+  // =========================================================
+  // AI assistant (server-side Gemini proxy at /api/ai/chat)
+  // =========================================================
+  const assistant = $('#assistant');
+  const assistantFab = $('#assistantOpen');
+  const chatForm = $('#aiChatForm');
+  const chatInput = $('#aiChatInput');
+  const chatLog = $('#aiChatLog');
+  const chatSend = $('button[type="submit"]', chatForm);
+  const AI_HISTORY_KEY = 'shereboy_ai_chat_history';
+  let chatHistory = [];
+  let lastUserMessage = '';
+  let aiSending = false;
 
-function appendErrorMsg(text) {
-  const div = document.createElement('div');
-  div.className = 'ai-msg ai-msg--error';
-  div.innerHTML = `<span>${escapeHtml(text)}</span>`;
-  const retry = document.createElement('button');
-  retry.type = 'button';
-  retry.className = 'retry-btn';
-  retry.textContent = 'Retry';
-  retry.addEventListener('click', () => { div.remove(); sendAiMessage(lastUserMessage); });
-  div.appendChild(retry);
-  aiChatLog.appendChild(div);
-  aiChatLog.scrollTop = aiChatLog.scrollHeight;
-  return div;
-}
+  function openAssistant() {
+    assistant.hidden = false;
+    assistantFab.classList.add('is-hidden');
+    assistantFab.setAttribute('aria-expanded', 'true');
+    chatInput.focus();
+  }
+  function closeAssistant() {
+    assistant.hidden = true;
+    assistantFab.classList.remove('is-hidden');
+    assistantFab.setAttribute('aria-expanded', 'false');
+    assistantFab.focus();
+  }
+  assistantFab.addEventListener('click', openAssistant);
+  $('#assistantClose').addEventListener('click', closeAssistant);
 
-function appendTypingIndicator() {
-  const div = document.createElement('div');
-  div.className = 'ai-msg ai-msg--bot ai-msg--typing';
-  div.innerHTML = `<span class="typing-dots"><span></span><span></span><span></span></span>`;
-  aiChatLog.appendChild(div);
-  aiChatLog.scrollTop = aiChatLog.scrollHeight;
-  return div;
-}
-
-function saveChatHistory() {
-  try { sessionStorage.setItem(AI_HISTORY_KEY, JSON.stringify(chatHistory)); } catch (e) { /* storage unavailable — non-critical */ }
-}
-
-(function restoreChatHistory() {
+  function appendMsg(text, cls) {
+    const div = document.createElement('div');
+    div.className = `ai-msg ${cls}`;
+    div.textContent = text;
+    chatLog.appendChild(div);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    return div;
+  }
+  function saveChat() { try { sessionStorage.setItem(AI_HISTORY_KEY, JSON.stringify(chatHistory.slice(-20))); } catch { /* non-critical */ } }
   try {
     const saved = JSON.parse(sessionStorage.getItem(AI_HISTORY_KEY) || '[]');
-    if (Array.isArray(saved) && saved.length) {
-      chatHistory = saved;
-      saved.forEach(m => appendMsg(m.text, m.role === 'user' ? 'ai-msg--user' : 'ai-msg--bot'));
+    if (Array.isArray(saved)) { chatHistory = saved; saved.forEach(m => appendMsg(m.text, m.role === 'user' ? 'ai-msg--user' : 'ai-msg--bot')); }
+  } catch { /* start fresh */ }
+
+  async function sendAiMessage(text) {
+    if (!text || aiSending) return;
+    aiSending = true;
+    lastUserMessage = text;
+    appendMsg(text, 'ai-msg--user');
+    const historyForRequest = chatHistory.slice(-6);
+    chatHistory.push({ role: 'user', text });
+    saveChat();
+    chatInput.disabled = true;
+    chatSend.disabled = true;
+    const typing = document.createElement('div');
+    typing.className = 'ai-msg ai-msg--bot';
+    typing.innerHTML = '<span class="typing-dots" aria-label="Assistant is typing"><span></span><span></span><span></span></span>';
+    chatLog.appendChild(typing);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    try {
+      const res = await fetch('/api/ai/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text, history: historyForRequest }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'The assistant is unavailable right now.');
+      typing.remove();
+      appendMsg(data.reply, 'ai-msg--bot');
+      chatHistory.push({ role: 'assistant', text: data.reply });
+      saveChat();
+    } catch (err) {
+      typing.remove();
+      const div = document.createElement('div');
+      div.className = 'ai-msg ai-msg--error';
+      div.innerHTML = `<span>${escapeHtml(err.message)}</span>`;
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'retry-btn';
+      retry.textContent = 'Retry';
+      retry.addEventListener('click', () => { div.remove(); chatHistory.pop(); chatLog.lastElementChild?.remove(); sendAiMessage(lastUserMessage); });
+      div.appendChild(retry);
+      chatLog.appendChild(div);
+      chatLog.scrollTop = chatLog.scrollHeight;
+    } finally {
+      chatInput.disabled = false;
+      chatSend.disabled = false;
+      chatInput.focus();
+      aiSending = false;
     }
-  } catch (e) { /* corrupt/unavailable storage — start fresh */ }
-})();
-
-async function sendAiMessage(message) {
-  if (!message || aiSending) return;
-  aiSending = true;
-  lastUserMessage = message;
-  appendMsg(message, 'ai-msg--user');
-  chatHistory.push({ role: 'user', text: message });
-  saveChatHistory();
-  aiChatInput.disabled = true;
-  setButtonLoading(aiChatSendBtn, true, 'Sending');
-  const typingEl = appendTypingIndicator();
-
-  try {
-    const res = await fetch('/api/ai/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, history: chatHistory })
-    });
-    const data = await res.json();
-    typingEl.remove();
-    if (!res.ok) throw new Error(data.error || 'Something went wrong.');
-    appendMsg(data.reply, 'ai-msg--bot');
-    chatHistory.push({ role: 'assistant', text: data.reply });
-    saveChatHistory();
-  } catch (err) {
-    typingEl.remove();
-    appendErrorMsg(err.message || 'The assistant is unavailable right now.');
-  } finally {
-    aiChatInput.disabled = false;
-    setButtonLoading(aiChatSendBtn, false);
-    aiChatInput.focus();
-    aiSending = false;
   }
-}
-
-// Auto-resize the textarea as the visitor types, up to a max height (CSS-capped)
-aiChatInput?.addEventListener('input', () => {
-  aiChatInput.style.height = 'auto';
-  aiChatInput.style.height = `${aiChatInput.scrollHeight}px`;
-});
-// Enter sends the message; Shift+Enter inserts a newline
-aiChatInput?.addEventListener('keydown', (e) => {
-  const isEnter = e.key === 'Enter' || e.keyCode === 13;
-  if (isEnter && !e.shiftKey) {
+  chatInput.addEventListener('input', () => { chatInput.style.height = 'auto'; chatInput.style.height = `${Math.min(chatInput.scrollHeight, 120)}px`; });
+  chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatForm.requestSubmit(); } });
+  chatForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    aiChatForm?.requestSubmit();
-  }
-});
+    const text = chatInput.value.trim();
+    if (!text) return;
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+    sendAiMessage(text);
+  });
 
-aiChatForm?.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const message = aiChatInput.value.trim();
-  if (!message) return;
-  aiChatInput.value = '';
-  aiChatInput.style.height = 'auto';
-  sendAiMessage(message);
-});
-
-// =========================================================
-// Contact form
-// =========================================================
-const contactForm = document.getElementById('contactForm');
-const contactStatus = document.getElementById('contactFormStatus');
-const contactSubmitBtn = document.getElementById('contactSubmitBtn');
-let contactSubmitting = false;
-
-contactForm?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  if (contactSubmitting) return;
-  contactSubmitting = true;
-  contactStatus.hidden = true;
-  setButtonLoading(contactSubmitBtn, true, 'Sending…');
-
-  const payload = {
-    name: document.getElementById('cfName').value.trim(),
-    email: document.getElementById('cfEmail').value.trim(),
-    phone: document.getElementById('cfPhone').value.trim(),
-    subject: document.getElementById('cfSubject').value.trim(),
-    message: document.getElementById('cfMessage').value.trim()
-  };
-
-  try {
-    const res = await fetch('/api/contact', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
-
-    const successMsg = data.message || "Thanks — we'll get back to you soon.";
-    contactStatus.innerHTML = `${ICONS.success}<span>${escapeHtml(successMsg)}</span>`;
-    contactStatus.className = 'contact-form__status contact-form__status--success';
-    contactStatus.hidden = false;
-    contactForm.reset();
-    showToast(successMsg, 'success');
-  } catch (err) {
-    contactStatus.innerHTML = `${ICONS.warning}<span>${escapeHtml(err.message)}</span>`;
-    contactStatus.className = 'contact-form__status contact-form__status--error';
-    contactStatus.hidden = false;
-    showToast(err.message, 'error');
-    contactForm.classList.remove('shake');
-    void contactForm.offsetWidth; // restart animation if triggered again
-    contactForm.classList.add('shake');
-  } finally {
-    setButtonLoading(contactSubmitBtn, false);
-    contactSubmitting = false;
-  }
-});
+  // =========================================================
+  // Boot
+  // =========================================================
+  loadCompany();
+  loadServices();
+  loadProjects();
+  loadReviews();
+  loadInsights();
+  hydrateMedia();
+  // Blog deep links don't depend on project data
+  if (/^\/blog\//.test(location.pathname)) routeFromLocation();
+})();

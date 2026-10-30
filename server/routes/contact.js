@@ -17,6 +17,12 @@ const contactLimiter = rateLimit({
     message: { error: 'Too many messages sent. Please try again later.' }
 });
 
+// Must match the options in the public enquiry form
+const PROJECT_TYPES = [
+    'Website', 'Web application', 'Custom software', 'Business management system',
+    'Mobile application', 'API / integration', 'Maintenance & support', 'Something else'
+];
+
 function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -27,23 +33,38 @@ router.post('/', contactLimiter, async (req, res) => {
     const name = sanitizeString(b.name, 150);
     const email = sanitizeString(b.email, 200);
     const phone = sanitizeString(b.phone, 50);
-    const subject = sanitizeString(b.subject, 200);
     const message = sanitizeString(b.message, 3000);
+    // The enquiry form sends a project type; it is stored in the existing `subject` column
+    const projectType = PROJECT_TYPES.includes(b.project_type) ? b.project_type : '';
+    const subject = projectType ? `Project enquiry: ${projectType}` : sanitizeString(b.subject, 200);
 
+    // Honeypot field — real visitors never see or fill it
+    if (b.website) {
+        return res.status(201).json({ success: true, message: "Thank you — your enquiry has been received." });
+    }
     if (!name || !email || !message) {
-        return res.status(400).json({ error: 'Name, email, and message are required.' });
+        return res.status(400).json({ error: 'Name, email, and project description are required.' });
+    }
+    if (name.length < 2) {
+        return res.status(400).json({ error: 'Please enter your full name.' });
     }
     if (!isValidEmail(email)) {
         return res.status(400).json({ error: 'Please enter a valid email address.' });
     }
+    if (phone && !/^[+()\d\s-]{7,20}$/.test(phone)) {
+        return res.status(400).json({ error: 'Please enter a valid phone number (digits, spaces, + and - only).' });
+    }
+    if (message.length < 10) {
+        return res.status(400).json({ error: 'Please tell us a little more about your project (at least 10 characters).' });
+    }
 
     const payload = { name, email, phone, subject, message };
 
-    const { data, error } = await supabase.from('contact_messages').insert(payload).select().single();
-    if (error) return res.status(500).json({ error: 'Failed to send message. Please try again.' });
+    const { error } = await supabase.from('contact_messages').insert(payload);
+    if (error) return res.status(500).json({ error: 'We could not send your enquiry. Please try again, or contact us by email or WhatsApp.' });
 
     notifyNewContactMessage(payload).catch(() => { });
-    res.status(201).json({ success: true, message: "Thanks — we'll get back to you soon." });
+    res.status(201).json({ success: true, message: "Thank you — your enquiry has been received. We'll get back to you within one business day." });
 });
 
 // GET /api/contact/admin/all — admin only
@@ -66,7 +87,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
     const { data } = await supabase.from('contact_messages').select('name').eq('id', req.params.id).single();
     const { error } = await supabase.from('contact_messages').delete().eq('id', req.params.id);
     if (error) return res.status(500).json({ error: 'Failed to delete message.' });
-    logActivity(req.session.user.id, 'contact_deleted', `Deleted message from "${data?.name || req.params.id}"`);
+    logActivity(req.session.user, 'contact_deleted', `Deleted message from "${data?.name || req.params.id}"`);
     res.json({ success: true });
 });
 

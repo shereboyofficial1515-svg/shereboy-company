@@ -4,7 +4,7 @@ const router = express.Router();
 const supabase = require('../database');
 const { requireAuth } = require('../auth');
 const { logActivity } = require('../activityLog');
-const { sanitizeString } = require('../middleware/security');
+const { sanitizeString, sanitizeUrl } = require('../middleware/security');
 const { notifyNewBlogPost } = require('../email');
 
 function slugify(text) {
@@ -85,7 +85,7 @@ router.post('/', requireAuth, async (req, res) => {
     slug,
     excerpt: sanitizeString(b.excerpt, 500),
     content: b.content, // long-form HTML/markdown — not truncated
-    featured_image_url: sanitizeString(b.featured_image_url, 1000),
+    featured_image_url: sanitizeUrl(b.featured_image_url, 1000),
     category_id: b.category_id || null,
     author: sanitizeString(b.author, 100) || 'SHEREBOY TECH LTD',
     featured: !!b.featured,
@@ -94,7 +94,7 @@ router.post('/', requireAuth, async (req, res) => {
 
   const { data, error } = await supabase.from('blog_posts').insert(payload).select().single();
   if (error) return res.status(500).json({ error: 'Failed to create post.' });
-  logActivity(req.session.user.id, 'blog_created', `Created blog post "${payload.title}"`);
+  logActivity(req.session.user, 'blog_created', `Created blog post "${payload.title}"`);
   notifyNewBlogPost(payload).catch(() => { });
   res.status(201).json({ post: data });
 });
@@ -107,7 +107,7 @@ router.put('/:id', requireAuth, async (req, res) => {
   if (b.slug !== undefined) payload.slug = slugify(b.slug);
   if (b.excerpt !== undefined) payload.excerpt = sanitizeString(b.excerpt, 500);
   if (b.content !== undefined) payload.content = b.content;
-  if (b.featured_image_url !== undefined) payload.featured_image_url = sanitizeString(b.featured_image_url, 1000);
+  if (b.featured_image_url !== undefined) payload.featured_image_url = sanitizeUrl(b.featured_image_url, 1000);
   if (b.category_id !== undefined) payload.category_id = b.category_id || null;
   if (b.author !== undefined) payload.author = sanitizeString(b.author, 100);
   if (b.featured !== undefined) payload.featured = !!b.featured;
@@ -116,7 +116,7 @@ router.put('/:id', requireAuth, async (req, res) => {
 
   const { data, error } = await supabase.from('blog_posts').update(payload).eq('id', req.params.id).select().single();
   if (error || !data) return res.status(404).json({ error: 'Post not found or update failed.' });
-  logActivity(req.session.user.id, 'blog_edited', `Edited blog post "${data.title}"`);
+  logActivity(req.session.user, 'blog_edited', `Edited blog post "${data.title}"`);
   res.json({ post: data });
 });
 
@@ -125,7 +125,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
   const { data } = await supabase.from('blog_posts').select('title').eq('id', req.params.id).single();
   const { error } = await supabase.from('blog_posts').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: 'Failed to delete post.' });
-  logActivity(req.session.user.id, 'blog_deleted', `Deleted blog post "${data?.title || req.params.id}"`);
+  logActivity(req.session.user, 'blog_deleted', `Deleted blog post "${data?.title || req.params.id}"`);
   res.json({ success: true });
 });
 
