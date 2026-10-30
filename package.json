@@ -6,7 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server/server.js",
-    "dev": "node server/server.js"
+    "dev": "node -e \"process.env.NODE_ENV='development';require('./server/server.js')\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

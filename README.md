@@ -114,37 +114,41 @@ You can add more admins later by inserting rows into the `users` table (`passwor
 be a bcrypt hash, same as above) — the login system checks both the env-based root admin and
 the `users` table.
 
-## 10. How to change company information
+## 10. Run the 2026-10 database update (once)
 
-Log into `/admin`, go to **Company Settings**. Update the description, mission, vision,
-CEO info, CAC number, contact details, and social links (`instagram_url`, `tiktok_url`,
-`youtube_url` — replace the `PLACEHOLDER_...` values once you have the real URLs). Changes
-save immediately to Supabase and appear on the public site right away.
+In Supabase → **SQL Editor**, run `database/migrations/2026-10-29-portfolio-media-admin.sql`.
+It is safe to run more than once. It adds project ordering, a per-project Live Preview switch,
+service benefit lists, editable core values and the media library table. The site keeps working
+before you run it — those features simply show a notice in the dashboard until then.
 
-## 11. How to add projects
+`database/migrations/2026-10-29-optional-service-catalogue.sql` is **optional**: review the
+wording, keep only services you really offer, then run it to add the full service catalogue.
 
-`/admin` → **Projects** → **+ New project**. Fill in the title, category, description,
-image URL, technologies (comma-separated), client name, and — most importantly — the
-**Live project URL**. Toggle **Published** to make it visible on the public site, and
-**Featured** to show it in the homepage's featured section.
+For private admin documents, create a second Storage bucket named `sheroboytech-private`
+(or set `SUPABASE_PRIVATE_BUCKET`) and leave it **not public**.
 
-> Tip: upload an image first via the browser's dev tools calling `POST /api/upload`, or
-> host images externally and paste the URL — a dedicated "upload" button can be wired into
-> the project form UI as a future enhancement.
+## 11. Using the admin dashboard (`/admin`)
 
-## 12. How to add blog posts
+| Section | What it does |
+|---|---|
+| **Overview** | Live counts (projects, drafts, enquiries, unread), enquiries per month, project status, content completeness, recent activity |
+| **Manage Projects** | Add / edit / delete, upload thumbnails, category, status, technologies, live address, publish/draft, featured, Live Preview switch, search, filters, sorting, pagination, reorder |
+| **Project Previews** | Checks whether each live website allows being shown inside your site, and turns the Live Preview button on/off |
+| **Services** | The “What We Build” section, including benefit checklists |
+| **About the Company** | Introduction, mission, vision, core values, founder photo & bio, CAC number and certificate (image or PDF), contact details, social links, logo |
+| **Images & Documents** | Checks every image the website uses (flags broken links), plus a media library: upload images/PDFs, descriptions (alt text), replace in place, private documents, delete |
+| **Insights (Blog)** / **Client Reviews** | Articles and genuine client reviews |
+| **Contact Messages** | Inbox with search, unread filter, reply by email/WhatsApp |
+| **Administrator Accounts** | Administrators only — add accounts, set role (*Administrator* or *Editor*), reset passwords |
+| **Security & Activity** | Administrators only — every sign-in, failed sign-in and change |
 
-`/admin` → **Blog** → **+ New post**. Leave the slug blank to auto-generate one from the
-title. Write content as HTML in the content field. Toggle **Published** when ready — drafts
-stay hidden from the public `/blog` listing until then.
+### Live Preview and embedding
 
-## 13. How to add reviews
-
-`/admin` → **Reviews** → **+ New review**. Reviews are unpublished by default so you can
-review submissions before they go live — toggle **Published** to display them publicly, and
-**Featured** to highlight them.
-
----
+Visitors can open a project's real website inside a device-frame preview. Some sites forbid
+being shown inside other sites (`X-Frame-Options` or CSP `frame-ancestors`). The server checks
+this first; blocked sites show an “Open Website in New Tab” option instead of a blank frame.
+For your own apps, allow previews by adding `https://shereboytechltd.site` to their
+`frame-ancestors` setting (and removing `X-Frame-Options: SAMEORIGIN`).
 
 ## Project structure
 
@@ -158,13 +162,15 @@ sheroboytech/
 │   │   ├── index.html
 │   │   ├── admin.css
 │   │   └── admin.js
-│   ├── robots.txt
-│   └── sitemap.xml
 ├── server/
 │   ├── server.js             # App entry point
 │   ├── database.js           # Supabase client (service role — backend only)
 │   ├── auth.js                # Login/logout/session logic
 │   ├── activityLog.js
+│   ├── dbCompat.js            # Works before/after the 2026-10 migration
+│   ├── previewCheck.js        # Can a project website be shown in an iframe?
+│   ├── seo.js                 # sitemap.xml, robots.txt, per-page meta tags
+│   ├── uploadStore.js         # Upload validation + storage
 │   ├── middleware/security.js # Rate limiting + input sanitizing
 │   └── routes/
 │       ├── auth.js
@@ -175,8 +181,11 @@ sheroboytech/
 │       ├── company.js
 │       ├── aiChat.js          # Secure Gemini proxy
 │       ├── dashboard.js
-│       └── upload.js
+│       ├── upload.js
+│       ├── media.js           # Media library
+│       └── adminUsers.js      # Admin accounts + activity log
 ├── database/schema.sql        # Run once in Supabase SQL Editor
+├── database/migrations/       # Run in order (see step 10)
 ├── scripts/hash-password.js   # Generates bcrypt hash for admin password
 ├── .env.example
 ├── render.yaml
@@ -191,6 +200,14 @@ sheroboytech/
 - Passwords are hashed with bcrypt; plaintext passwords are never stored.
 - Login attempts are rate-limited; the AI chat endpoint has its own stricter rate limit.
 - All admin write endpoints re-validate input server-side, regardless of frontend checks.
+- Every admin write must carry the per-session CSRF token (`X-CSRF-Token`).
+- Roles (`admin`, `editor`) are enforced on the server; editors cannot manage accounts,
+  view security logs or delete files.
+- Uploads: JPEG/PNG/WEBP/GIF images (5MB) and PDFs (10MB) only, verified by file signature,
+  stored under random names. SVG is rejected. Private documents are served only through
+  short-lived signed links.
+- A Content-Security-Policy blocks inline scripts; CORS is closed to other origins unless
+  listed in `ALLOWED_ORIGINS`.
 - The admin dashboard is not linked from the public navigation and isn't the primary
   security mechanism — authentication is.
 

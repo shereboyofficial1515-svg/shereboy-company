@@ -16,6 +16,10 @@ services:
         sync: false
       - key: SUPABASE_STORAGE_BUCKET
         value: sheroboytech-media
+      - key: SUPABASE_PRIVATE_BUCKET
+        value: sheroboytech-private
+      - key: SITE_URL
+        value: https://shereboytechltd.site
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
