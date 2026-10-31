@@ -112,7 +112,7 @@
         <a href="#/services" data-view="services"><svg class="icon"><use href="#a-services"/></svg><span>Services</span></a>
         <a href="#/company" data-view="company"><svg class="icon"><use href="#a-about"/></svg><span>About the Company</span></a>
         <a href="#/media" data-view="media"><svg class="icon"><use href="#a-media"/></svg><span>Images &amp; Documents</span></a>
-        <a href="#/insights" data-view="insights"><svg class="icon"><use href="#a-blog"/></svg><span>Insights (Blog)</span></a>
+        <a href="#/blog" data-view="blog"><svg class="icon"><use href="#a-blog"/></svg><span>SHEREBOY BLOG Connection</span></a>
         <a href="#/reviews" data-view="reviews"><svg class="icon"><use href="#a-star-o"/></svg><span>Client Reviews</span></a>
         <p class="sidebar__group">Enquiries</p>
         <a href="#/messages" data-view="messages"><svg class="icon"><use href="#a-messages"/></svg><span>Contact Messages</span><b class="nav-badge" id="unreadBadge" hidden></b></a>
@@ -283,18 +283,21 @@
           </article>
         </section>
 
-        <!-- INSIGHTS -->
-        <section class="view" id="view-insights" hidden>
+        <!-- SHEREBOY BLOG CONNECTION (read-only integration status) -->
+        <section class="view" id="view-blog" hidden>
           <div class="view-head">
-            <div><h1>Insights (Blog)</h1><p>Articles in the Insights section of the website.</p></div>
-            <div class="view-head__actions"><button class="btn btn--primary" id="newPostBtn" type="button"><svg class="icon"><use href="#a-plus"/></svg>New article</button></div>
+            <div><h1>SHEREBOY BLOG Connection</h1><p>The website's Insights section shows published articles from SHEREBOY BLOG automatically.</p></div>
+            <div class="view-head__actions">
+              <button class="btn btn--ghost" type="button" id="blogRefreshBtn"><svg class="icon"><use href="#a-refresh"/></svg>Refresh articles</button>
+              <a class="btn btn--primary" id="blogOpenBtn" href="https://shereblog-news.onrender.com/" target="_blank" rel="noopener noreferrer"><svg class="icon"><use href="#a-external"/></svg>Open SHEREBOY BLOG</a>
+            </div>
           </div>
-          <div class="table-card">
-            <table class="table" id="blogTable">
-              <thead><tr><th>Article</th><th>Featured</th><th>Visibility</th><th>Last updated</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
+          <div class="notice"><svg class="icon"><use href="#a-blog"/></svg><div><strong>Articles are managed on SHEREBOY BLOG.</strong> Write, edit, schedule, publish and delete articles in the SHEREBOY BLOG dashboard. Published articles appear on this website within minutes; unpublished or deleted articles are removed automatically. Nothing on this page can change blog content.</div></div>
+          <div class="blog-conn" id="blogConnection"></div>
+          <article class="card">
+            <header class="card__head"><div><h2>Articles currently shown on the website</h2><p>Read-only preview of the latest published articles. Links open the original on SHEREBOY BLOG.</p></div></header>
+            <div id="blogArticles"></div>
+          </article>
         </section>
 
         <!-- REVIEWS -->

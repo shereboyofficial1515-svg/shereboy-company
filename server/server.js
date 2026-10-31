@@ -16,7 +16,8 @@ const { apiLimiter } = require('./middleware/security');
 const authRoutes = require('./routes/auth');
 const projectRoutes = require('./routes/projects');
 const reviewRoutes = require('./routes/reviews');
-const blogRoutes = require('./routes/blog');
+const blogFeedRoutes = require('./routes/blogFeed');
+const blogFeed = require('./blogFeed');
 const serviceRoutes = require('./routes/services');
 const companyRoutes = require('./routes/company');
 const aiChatRoutes = require('./routes/aiChat');
@@ -68,7 +69,8 @@ app.use(compression());
 // are refused unless an origin is explicitly listed in ALLOWED_ORIGINS.
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : false, credentials: true }));
-app.use(express.json({ limit: '1mb' }));
+// rawBody is kept so the SHEREBOY BLOG webhook signature can be verified byte-for-byte
+app.use(express.json({ limit: '1mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
@@ -92,7 +94,8 @@ app.use('/api', apiLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/reviews', reviewRoutes);
-app.use('/api/blog', blogRoutes);
+// Articles come from SHEREBOY BLOG (read-only); the old internal /api/blog CMS is retired
+app.use('/api/blog-feed', blogFeedRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/company', companyRoutes);
 app.use('/api/ai/chat', aiChatLimiter, aiChatRoutes);
@@ -109,7 +112,9 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }));
 app.get('/sitemap.xml', seo.sitemap);
 app.get('/robots.txt', seo.robots);
 app.get('/projects/:id', seo.projectPage);
-app.get('/blog/:slug', seo.blogPage);
+app.get('/', seo.homePage);
+// Old internal article URLs: articles now live on SHEREBOY BLOG — send visitors to the Insights section
+app.get(['/blog', '/blog/:slug'], (req, res) => res.redirect(301, '/#insights'));
 
 // --- Static frontend ---
 app.use(express.static(path.join(__dirname, '..', 'public'), {
@@ -128,7 +133,7 @@ app.get(['/admin', '/admin/*'], (req, res) => {
 });
 
 // Any other non-API, non-file route falls back to index.html for client-side routing
-// (unknown /projects/:id or /blog/:slug also land here and show a friendly message).
+// (unknown /projects/:id also lands here and shows a friendly message).
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
   if (req.path.includes('.')) return next(); // let static middleware / 404 handle real files
@@ -151,5 +156,6 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
+  blogFeed.startPeriodicRefresh();
   console.log(`SHEREBOY TECH LTD server running on port ${PORT}`);
 });

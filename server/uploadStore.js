@@ -27,7 +27,8 @@ const TYPES = {
   'application/pdf': { ext: 'pdf', max: 10 * 1024 * 1024, sig: (b) => b.slice(0, 5).toString('latin1') === '%PDF-' }
 };
 const MAX_SIZE = Math.max(...Object.values(TYPES).map(t => t.max));
-const FOLDERS = ['projects', 'blog', 'reviews', 'company', 'documents', 'media'];
+// (the old 'blog' folder is retired — articles and their images are managed on SHEREBOY BLOG)
+const FOLDERS = ['projects', 'reviews', 'company', 'documents', 'media'];
 
 const multerSingle = multer({
   storage: multer.memoryStorage(),

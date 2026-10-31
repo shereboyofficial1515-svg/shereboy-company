@@ -830,107 +830,108 @@
   }
 
   // =========================================================
-  // Insights (blog)
+  // Insights — read-only feed from SHEREBOY BLOG
+  // Articles are written and hosted on SHEREBOY BLOG; this site only shows
+  // summaries (fetched and cached by our server) and links to the original.
   // =========================================================
-  async function loadInsights() {
-    const hideInsights = () => ['#navInsights', '#drawerInsights', '#footerInsights'].forEach(s => { const el = $(s); if (el) el.hidden = true; });
+  const blogFeedEl = $('#blogFeed');
+
+  function articleMeta(a) {
+    return [
+      a.publishedAt ? `<time datetime="${escapeHtml(a.publishedAt)}">${formatDate(a.publishedAt, { day: 'numeric', month: 'long', year: 'numeric' })}</time>` : '',
+      a.author ? `<span>${escapeHtml(a.author.name)}</span>` : '',
+      a.readingTimeMinutes ? `<span>${a.readingTimeMinutes} min read</span>` : ''
+    ].filter(Boolean).join('<span aria-hidden="true">·</span>');
+  }
+
+  function blogMedia(a, eager) {
+    // Missing or broken images fall back to a neutral SHEREBOY BLOG placeholder (never a fake image)
+    return `<div class="media blog-media media--loading">
+      <div class="media__fallback blog-media__fallback" aria-hidden="true">${icon('doc')}<span>SHEREBOY BLOG</span></div>
+      ${a.image ? `<img class="media__img" src="${escapeHtml(a.image.url)}" alt="${escapeHtml(a.image.alt || a.title)}" ${eager ? '' : 'loading="lazy"'} decoding="async">` : ''}
+    </div>`;
+  }
+
+  function articleCard(a, featured) {
+    const href = escapeHtml(safeHref(a.url));
+    const readLabel = escapeHtml(`Read more: ${a.title} (opens on SHEREBOY BLOG)`);
+    return `<article class="${featured ? 'blog-featured' : 'blog-card'} reveal">
+      <a class="blog-card__media" href="${href}" tabindex="-1" aria-hidden="true">${blogMedia(a, featured)}
+        ${featured ? '<span class="blog-featured__flag">Featured</span>' : ''}</a>
+      <div class="blog-card__body">
+        ${a.category ? `<span class="blog-card__cat">${escapeHtml(a.category.name)}</span>` : ''}
+        <h3 class="blog-card__title"><a href="${href}">${escapeHtml(a.title)}</a></h3>
+        ${a.excerpt ? `<p class="blog-card__excerpt">${escapeHtml(a.excerpt)}</p>` : ''}
+        <p class="blog-card__meta">${articleMeta(a)}</p>
+        <a class="${featured ? 'btn btn--primary blog-card__cta' : 'blog-card__more'}" href="${href}" aria-label="${readLabel}">Read More ${icon('arrow')}</a>
+      </div>
+    </article>`;
+  }
+
+  function blogState({ title, message, retry }) {
+    blogFeedEl.innerHTML = `<div class="blog-state">
+      <span class="blog-state__icon">${icon(retry ? 'warning' : 'doc')}</span>
+      <h3>${escapeHtml(title)}</h3>
+      <p>${escapeHtml(message)}</p>
+      <div class="blog-state__actions">
+        ${retry ? `<button type="button" class="btn btn--ghost" data-blog-retry>${icon('refresh')}Try again</button>` : ''}
+        <a class="btn btn--primary" href="${escapeHtml($('[data-blog-home]').getAttribute('href'))}">Visit SHEREBOY BLOG ${icon('arrow-up-right')}</a>
+      </div>
+    </div>`;
+  }
+
+  async function loadBlogFeed() {
+    blogFeedEl.setAttribute('aria-busy', 'true');
+    blogFeedEl.innerHTML = '<div class="skeleton skeleton--featured"></div><div class="skeleton skeleton--post"></div><div class="skeleton skeleton--post"></div><div class="skeleton skeleton--post"></div>';
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
     try {
-      const { posts } = await apiGet('/api/blog?limit=3');
-      if (!posts || !posts.length) { hideInsights(); return; }
-      const list = $('#insightsList');
-      list.classList.toggle('insights--3', posts.length >= 3);
-      list.innerHTML = posts.map(p => `
-        <a class="post-card reveal" href="/blog/${encodeURIComponent(p.slug)}" data-slug="${escapeHtml(p.slug)}">
-          ${mediaHtml({ src: p.featured_image_url, alt: '', fallback: 'doc' })}
-          <div class="post-card__body">
-            <span class="post-card__meta">${formatDate(p.created_at)} · ${escapeHtml(p.author || 'SHEREBOY TECH LTD')}</span>
-            <h3>${escapeHtml(p.title)}</h3>
-            <p>${escapeHtml(p.excerpt || '')}</p>
-            <span class="post-card__more">Read article ${icon('arrow')}</span>
-          </div>
-        </a>`).join('');
-      $('#insights').hidden = false;
-      hydrateMedia(list);
-      observeReveals($('#insights'));
-    } catch {
-      hideInsights();
-    }
-  }
-  $('#insightsList').addEventListener('click', (e) => {
-    const a = e.target.closest('[data-slug]');
-    if (!a || e.metaKey || e.ctrlKey) return;
-    e.preventDefault();
-    openPost(a.dataset.slug, { opener: a });
-  });
+      const res = await fetch('/api/blog-feed', { headers: { Accept: 'application/json' }, signal: controller.signal });
+      const feed = await res.json();
+      if (!res.ok || !feed || !Array.isArray(feed.articles)) throw new Error('bad response');
+      const home = safeHref(feed.blogUrl);
+      if (home) $$('[data-blog-home]').forEach(a => { a.href = `${home}/`; });
 
-  // Blog content sanitization — strips scripts / event handlers / unsafe URLs
-  const ALLOWED_TAGS = new Set(['P', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'A', 'UL', 'OL', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'CODE', 'IMG', 'SPAN', 'DIV', 'HR', 'TABLE', 'THEAD', 'TBODY', 'TR', 'TD', 'TH', 'FIGURE', 'FIGCAPTION']);
-  const ALLOWED_ATTRS = { A: ['href', 'title'], IMG: ['src', 'alt', 'title'] };
-  function sanitizeHtml(html) {
-    const doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
-    const walk = (node) => {
-      Array.from(node.childNodes).forEach(child => {
-        if (child.nodeType === Node.ELEMENT_NODE) {
-          if (!ALLOWED_TAGS.has(child.tagName)) { child.replaceWith(...Array.from(child.childNodes)); return; }
-          Array.from(child.attributes).forEach(attr => {
-            const allowed = ALLOWED_ATTRS[child.tagName] || [];
-            const unsafeUrl = /^(href|src)$/i.test(attr.name) && !safeHref(attr.value) && !/^mailto:|^tel:/i.test(attr.value);
-            if (!allowed.includes(attr.name.toLowerCase()) || unsafeUrl) child.removeAttribute(attr.name);
-          });
-          if (child.tagName === 'A') { child.setAttribute('target', '_blank'); child.setAttribute('rel', 'noopener noreferrer'); }
-          if (child.tagName === 'IMG') child.setAttribute('loading', 'lazy');
-          walk(child);
-        } else if (child.nodeType !== Node.TEXT_NODE) {
-          child.remove();
-        }
-      });
-    };
-    walk(doc.body);
-    return doc.body.innerHTML;
-  }
-  function formatPostContent(raw) {
-    const str = String(raw || '');
-    if (/<(p|div|h[1-6]|ul|ol|li|blockquote|pre|table|figure)\b/i.test(str)) return sanitizeHtml(str);
-    return sanitizeHtml(str.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean)
-      .map(b => /^-{3,}$/.test(b) ? '<hr>' : `<p>${escapeHtml(b).replace(/\n/g, '<br>')}</p>`).join(''));
-  }
-
-  const postModal = $('#postModal');
-  const DEFAULT_TITLE = document.title;
-  async function openPost(slug, { opener, pushHistory = true } = {}) {
-    const content = $('#postModalContent');
-    content.innerHTML = '<div class="loading-row"><span class="spinner" aria-hidden="true"></span>Loading article…</div>';
-    openDialog(postModal, {
-      opener,
-      onClose: () => {
-        document.title = DEFAULT_TITLE;
-        if (/^\/blog\//.test(location.pathname)) history.pushState({}, '', '/#insights');
+      if (feed.status === 'unavailable') {
+        blogState({ title: 'Articles are temporarily unavailable', message: 'We couldn\'t reach SHEREBOY BLOG just now. You can try again, or read the latest articles directly on the blog.', retry: true });
+        return;
       }
-    });
-    if (pushHistory) history.pushState({ slug }, '', `/blog/${slug}`);
-    try {
-      const { post } = await apiGet(`/api/blog/${encodeURIComponent(slug)}`);
-      content.innerHTML = `
-        ${post.featured_image_url ? mediaHtml({ src: post.featured_image_url, alt: post.title, eager: true }) : ''}
-        <div class="post-view">
-          <h2 id="postModalTitle">${escapeHtml(post.title)}</h2>
-          <span class="post-card__meta">${formatDate(post.created_at)} · ${escapeHtml(post.author || 'SHEREBOY TECH LTD')}</span>
-          <div class="post-body">${formatPostContent(post.content)}</div>
-        </div>`;
-      document.title = `${post.title} — SHEREBOY TECH LTD`;
-      hydrateMedia(content);
+      const articles = feed.articles.filter(a => a && a.title && safeHref(a.url));
+      if (!articles.length) {
+        blogState({ title: 'Fresh articles coming soon', message: 'New insights are on the way. Visit SHEREBOY BLOG for more updates.' });
+        return;
+      }
+      const lead = articles.find(a => a.isFeatured) || articles[0];
+      const rest = articles.filter(a => a !== lead).slice(0, 6);
+      blogFeedEl.innerHTML = articleCard(lead, true) + (rest.length ? `<div class="blog-grid">${rest.map(a => articleCard(a, false)).join('')}</div>` : '');
+      $('#blogFeedNote').textContent = feed.status === 'stale'
+        ? 'Showing recently saved articles while SHEREBOY BLOG updates. Articles are hosted on SHEREBOY BLOG.'
+        : 'Articles are written, published and hosted on SHEREBOY BLOG.';
+      hydrateMedia(blogFeedEl);
+      observeReveals(blogFeedEl);
     } catch {
-      content.innerHTML = `<div class="post-state">${icon('warning')}<p id="postModalTitle">Sorry, this article could not be found or is no longer available.</p>
-        <button type="button" class="btn btn--ghost" data-close-modal>Back to the website</button></div>`;
+      blogState({ title: 'Articles are temporarily unavailable', message: 'We couldn\'t load the latest articles right now. Please try again, or visit SHEREBOY BLOG directly.', retry: true });
+    } finally {
+      clearTimeout(timer);
+      blogFeedEl.setAttribute('aria-busy', 'false');
     }
   }
+  blogFeedEl.addEventListener('click', (e) => { if (e.target.closest('[data-blog-retry]')) loadBlogFeed(); });
+
+  // Load when the section approaches the viewport (no request for visitors who never scroll there)
+  (function initBlogFeed() {
+    if (!('IntersectionObserver' in window) || location.hash === '#insights') { loadBlogFeed(); return; }
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting)) { io.disconnect(); loadBlogFeed(); }
+    }, { rootMargin: '800px 0px' });
+    io.observe($('#insights'));
+  })();
 
   // =========================================================
-  // Client-side routes: /projects/:id and /blog/:slug
+  // Client-side route: /projects/:id
   // =========================================================
   function routeFromLocation() {
     const projectMatch = location.pathname.match(/^\/projects\/([\w-]+)\/?$/);
-    const blogMatch = location.pathname.match(/^\/blog\/([a-z0-9-]+)\/?$/i);
     if (projectMatch) {
       if (projects.length && !openProject(projectMatch[1], { pushHistory: false })) {
         showToast('That project could not be found.', 'error');
@@ -938,11 +939,6 @@
       }
     } else if (!projectModal.hidden) {
       closeDialog(projectModal, { restoreFocus: false });
-    }
-    if (blogMatch) {
-      if (postModal.hidden) openPost(blogMatch[1], { pushHistory: false });
-    } else if (!postModal.hidden) {
-      closeDialog(postModal, { restoreFocus: false });
     }
   }
   window.addEventListener('popstate', routeFromLocation);
@@ -1130,8 +1126,5 @@
   loadServices();
   loadProjects();
   loadReviews();
-  loadInsights();
   hydrateMedia();
-  // Blog deep links don't depend on project data
-  if (/^\/blog\//.test(location.pathname)) routeFromLocation();
 })();

@@ -1,7 +1,7 @@
 # SHEREBOY TECH LTD — Full-Stack Company Website
 
 A complete company website for **SHEREBOY TECH LTD**: public marketing site, dynamic
-projects/blog/reviews/services, an admin dashboard, and a Gemini-powered "SHEREBOY AI
+projects/reviews/services, articles from SHEREBOY BLOG, an admin dashboard, and a Gemini-powered "SHEREBOY AI
 Assistant" — all served from a single Node.js/Express app, backed by Supabase (PostgreSQL).
 
 Stack: **HTML/CSS/vanilla JS** (frontend) · **Node.js/Express** (backend) · **Supabase
@@ -137,7 +137,8 @@ For private admin documents, create a second Storage bucket named `sheroboytech-
 | **Services** | The “What We Build” section, including benefit checklists |
 | **About the Company** | Introduction, mission, vision, core values, founder photo & bio, CAC number and certificate (image or PDF), contact details, social links, logo |
 | **Images & Documents** | Checks every image the website uses (flags broken links), plus a media library: upload images/PDFs, descriptions (alt text), replace in place, private documents, delete |
-| **Insights (Blog)** / **Client Reviews** | Articles and genuine client reviews |
+| **SHEREBOY BLOG Connection** | Read-only status of the blog integration: connection, API availability, last sync, published count, last error, refresh button, link to the blog |
+| **Client Reviews** | Genuine client reviews |
 | **Contact Messages** | Inbox with search, unread filter, reply by email/WhatsApp |
 | **Administrator Accounts** | Administrators only — add accounts, set role (*Administrator* or *Editor*), reset passwords |
 | **Security & Activity** | Administrators only — every sign-in, failed sign-in and change |
@@ -149,6 +150,32 @@ being shown inside other sites (`X-Frame-Options` or CSP `frame-ancestors`). The
 this first; blocked sites show an “Open Website in New Tab” option instead of a blank frame.
 For your own apps, allow previews by adding `https://shereboytechltd.site` to their
 `frame-ancestors` setting (and removing `X-Frame-Options: SAMEORIGIN`).
+
+## 12. SHEREBOY BLOG integration (Insights section)
+
+Articles are written, published and hosted on **SHEREBOY BLOG**
+(https://shereblog-news.onrender.com). This site never stores or edits them — the old internal
+blog editor and `/api/blog` endpoints were removed. Old `/blog/<slug>` links redirect to
+`/#insights`. The `blog_posts`, `categories`, `tags` and `blog_tags` tables were left untouched
+for historical reference; nothing reads them any more.
+
+How it works:
+
+1. The server reads `GET <BLOG_API_BASE_URL>/api/public/articles` (published summaries only).
+2. Results are kept in memory for `BLOG_CACHE_TTL_SECONDS` (5 min). Visitors always get an
+   instant answer; stale copies are refreshed in the background.
+3. When an article is published, edited, unpublished or deleted, SHEREBOY BLOG calls
+   `POST /api/blog-feed/webhook` (HMAC-signed with `BLOG_WEBHOOK_SECRET`) and the cache refreshes
+   immediately. A periodic refresh every 15 minutes is the fallback.
+4. If the blog is offline, the last good copy is shown for up to `BLOG_STALE_MAX_SECONDS` (6 h);
+   after that the section shows a friendly "temporarily unavailable" message instead of
+   possibly outdated articles. The rest of the website is never affected.
+5. **Read More** opens the original article on SHEREBOY BLOG
+   (`/article.html?slug=<slug>`); **Explore All Articles** opens the blog homepage.
+
+Setup: set `BLOG_WEBHOOK_SECRET` here and the same value as `COMPANY_SITE_WEBHOOK_SECRET` on
+SHEREBOY BLOG, plus `COMPANY_SITE_WEBHOOK_URL=https://shereboytechltd.site/api/blog-feed/webhook`
+on the blog. Without the webhook, new articles still appear within about 5 minutes.
 
 ## Project structure
 
@@ -167,6 +194,7 @@ sheroboytech/
 │   ├── database.js           # Supabase client (service role — backend only)
 │   ├── auth.js                # Login/logout/session logic
 │   ├── activityLog.js
+│   ├── blogFeed.js            # Cached, validated client for the SHEREBOY BLOG public API
 │   ├── dbCompat.js            # Works before/after the 2026-10 migration
 │   ├── previewCheck.js        # Can a project website be shown in an iframe?
 │   ├── seo.js                 # sitemap.xml, robots.txt, per-page meta tags
@@ -176,7 +204,7 @@ sheroboytech/
 │       ├── auth.js
 │       ├── projects.js
 │       ├── reviews.js
-│       ├── blog.js
+│       ├── blogFeed.js       # SHEREBOY BLOG feed + webhook + admin status
 │       ├── services.js
 │       ├── company.js
 │       ├── aiChat.js          # Secure Gemini proxy

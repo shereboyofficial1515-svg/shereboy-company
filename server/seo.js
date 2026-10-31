@@ -1,12 +1,16 @@
 // server/seo.js
 // Server-side SEO for the single-page site:
-//  * /sitemap.xml — absolute URLs for the homepage, published projects and articles
-//  * /projects/:id and /blog/:slug — the same app shell, but with that page's
+//  * /sitemap.xml — absolute URLs for the homepage and published projects
+//    (articles belong to SHEREBOY BLOG, which publishes its own sitemap)
+//  * /            — homepage, plus structured data listing the latest SHEREBOY BLOG
+//    articles (each pointing at its canonical URL on the blog)
+//  * /projects/:id — the same app shell, but with that page's
 //    <title>, description, canonical URL and Open Graph tags filled in, so search
 //    engines and social networks see the right preview without running JS.
 const fs = require('fs');
 const path = require('path');
 const supabase = require('./database');
+const blogFeed = require('./blogFeed');
 
 const INDEX_PATH = path.join(__dirname, '..', 'public', 'index.html');
 const SITE = () => (process.env.SITE_URL || 'https://shereboytechltd.site').split(',')[0].trim().replace(/\/+$/, '');
@@ -56,29 +60,44 @@ async function projectPage(req, res, next) {
   } catch { next(); }
 }
 
-async function blogPage(req, res, next) {
-  try {
-    const { data } = await supabase.from('blog_posts').select('slug, title, excerpt, featured_image_url').eq('slug', req.params.slug).eq('published', true).maybeSingle();
-    if (!data) return next();
-    res.type('html').send(withMeta({
-      title: `${data.title} — SHEREBOY TECH LTD Insights`,
-      description: clip(data.excerpt || data.title, 160),
-      url: `${SITE()}/blog/${data.slug}`,
-      image: data.featured_image_url
-    }));
-  } catch { next(); }
+// JSON-LD is embedded as data; "</" is escaped so article text can never close the script element
+const jsonLd = (obj) => JSON.stringify(obj).replace(/</g, '\\u003c');
+
+function homePage(req, res) {
+  const articles = blogFeed.cachedArticles();
+  let html = indexHtml();
+  if (articles.length) {
+    const list = {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: 'Insights, News & Ideas from SHEREBOY BLOG',
+      itemListElement: articles.map((a, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        item: {
+          '@type': 'BlogPosting',
+          headline: a.title,
+          url: a.canonicalUrl || a.url,
+          datePublished: a.publishedAt,
+          dateModified: a.updatedAt,
+          ...(a.image ? { image: a.image.url } : {}),
+          ...(a.author ? { author: { '@type': 'Person', name: a.author.name } } : {}),
+          publisher: { '@type': 'Organization', name: 'SHEREBOY BLOG' }
+        }
+      }))
+    };
+    html = html.replace('</head>', `  <script type="application/ld+json" id="blogFeedLd">${jsonLd(list)}</script>\n</head>`);
+  }
+  res.set('Cache-Control', 'no-cache');
+  res.type('html').send(html);
 }
 
 async function sitemap(req, res) {
-  const [projects, posts] = await Promise.all([
-    supabase.from('projects').select('id, updated_at').eq('published', true),
-    supabase.from('blog_posts').select('slug, updated_at').eq('published', true)
-  ]);
+  const projects = await supabase.from('projects').select('id, updated_at').eq('published', true);
   const day = (d) => (d ? new Date(d) : new Date()).toISOString().slice(0, 10);
   const urls = [
     `<url><loc>${SITE()}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>`,
-    ...(projects.data || []).map(p => `<url><loc>${SITE()}/projects/${p.id}</loc><lastmod>${day(p.updated_at)}</lastmod><priority>0.7</priority></url>`),
-    ...(posts.data || []).map(p => `<url><loc>${SITE()}/blog/${encodeURIComponent(p.slug)}</loc><lastmod>${day(p.updated_at)}</lastmod><priority>0.6</priority></url>`)
+    ...(projects.data || []).map(p => `<url><loc>${SITE()}/projects/${p.id}</loc><lastmod>${day(p.updated_at)}</lastmod><priority>0.7</priority></url>`)
   ];
   res.set('Cache-Control', 'public, max-age=3600');
   res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  ${urls.join('\n  ')}\n</urlset>\n`);
@@ -88,4 +107,4 @@ function robots(req, res) {
   res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api\n\nSitemap: ${SITE()}/sitemap.xml\n`);
 }
 
-module.exports = { projectPage, blogPage, sitemap, robots };
+module.exports = { projectPage, homePage, sitemap, robots };

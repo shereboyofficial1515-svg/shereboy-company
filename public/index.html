@@ -534,16 +534,29 @@ app.<span class="f">get</span>(<span class="s">'/api/orders'</span>, <span class
       </div>
     </section>
 
-    <!-- ============ INSIGHTS (only shown when published posts exist) ============ -->
-    <section class="section section--insights" id="insights" aria-labelledby="insightsTitle" hidden>
+    <!-- ============ INSIGHTS — articles from SHEREBOY BLOG (read-only feed) ============ -->
+    <section class="section section--insights" id="insights" aria-labelledby="insightsTitle">
       <div class="container">
         <div class="section-head section-head--split">
           <div>
-            <p class="eyebrow reveal">Insights</p>
-            <h2 class="section-title reveal" id="insightsTitle">Ideas and advice for growing businesses.</h2>
+            <p class="eyebrow blog-brand reveal"><span class="blog-brand__mark" aria-hidden="true">SB</span>Powered by SHEREBOY BLOG</p>
+            <h2 class="section-title reveal" id="insightsTitle">Insights, News &amp; Ideas</h2>
+          </div>
+          <div class="insights-head">
+            <p class="section-lede reveal">Discover the latest technology updates, industry insights, company news and ideas from SHEREBOY BLOG.</p>
+            <a class="btn btn--ghost reveal" href="https://shereblog-news.onrender.com/" data-blog-home>Explore All Articles <svg class="icon"><use href="#i-arrow-up-right"/></svg></a>
           </div>
         </div>
-        <div class="insights" id="insightsList"></div>
+        <div class="blog-feed" id="blogFeed" aria-live="polite" aria-busy="true">
+          <div class="skeleton skeleton--featured"></div>
+          <div class="skeleton skeleton--post"></div>
+          <div class="skeleton skeleton--post"></div>
+          <div class="skeleton skeleton--post"></div>
+        </div>
+        <div class="blog-feed__footer reveal">
+          <a class="btn btn--primary btn--lg" href="https://shereblog-news.onrender.com/" data-blog-home>Explore All Articles <svg class="icon"><use href="#i-arrow-up-right"/></svg></a>
+          <p class="blog-feed__note" id="blogFeedNote">Articles are written, published and hosted on SHEREBOY BLOG.</p>
+        </div>
       </div>
     </section>
 
@@ -801,14 +814,6 @@ app.<span class="f">get</span>(<span class="s">'/api/orders'</span>, <span class
     </div>
   </div>
 
-  <!-- ============ BLOG POST MODAL (client-side route: /blog/:slug) ============ -->
-  <div class="modal" id="postModal" role="dialog" aria-modal="true" aria-labelledby="postModalTitle" hidden>
-    <div class="modal__backdrop" data-close-modal></div>
-    <article class="modal__panel modal__panel--post">
-      <button class="icon-btn modal__close" type="button" data-close-modal aria-label="Close"><svg class="icon"><use href="#i-close"/></svg></button>
-      <div id="postModalContent"></div>
-    </article>
-  </div>
 </body>
 
 </html>
