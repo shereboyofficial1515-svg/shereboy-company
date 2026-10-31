@@ -457,3 +457,26 @@ a.kpi:hover { border-color: var(--line-2); transform: translateY(-2px); }
   .topbar { gap: 8px; padding: 0 12px; }
   .topbar__actions { gap: 6px; }
 }
+
+/* SHEREBOY BLOG connection */
+.blog-conn { display: grid; gap: 16px; }
+.blog-conn__status { display: flex; gap: 14px; align-items: flex-start; padding: 18px 20px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); }
+.blog-conn__status strong { display: block; font-size: 1rem; }
+.blog-conn__status p { color: var(--muted); font-size: .88rem; margin-top: 2px; }
+.blog-conn__dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.blog-conn__status.is-ok { border-color: rgba(52, 211, 153, .35); }
+.blog-conn__status.is-ok .blog-conn__dot { background: var(--green); box-shadow: 0 0 0 5px rgba(52, 211, 153, .15); }
+.blog-conn__status.is-down { border-color: rgba(248, 113, 113, .35); }
+.blog-conn__status.is-down .blog-conn__dot { background: var(--red); box-shadow: 0 0 0 5px rgba(248, 113, 113, .15); }
+.blog-conn__grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.blog-conn__stat { padding: 16px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); display: grid; gap: 4px; align-content: start; min-width: 0; }
+.blog-conn__stat > span { color: var(--dim); font-size: .76rem; text-transform: uppercase; letter-spacing: .06em; }
+.blog-conn__stat strong { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; }
+.blog-conn__stat small { color: var(--muted); font-size: .8rem; overflow-wrap: anywhere; }
+.blog-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.blog-list li { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.blog-list li:last-child { border-bottom: 0; }
+.blog-list li > div { min-width: 0; }
+.blog-list a { color: var(--text); text-decoration: none; }
+.blog-list a:hover strong { color: var(--blue-2); }
+.blog-list small { display: block; color: var(--dim); font-size: .8rem; margin-top: 2px; }

@@ -20,6 +20,12 @@ services:
         value: sheroboytech-private
       - key: SITE_URL
         value: https://shereboytechltd.site
+      - key: BLOG_API_BASE_URL
+        value: https://shereblog-news.onrender.com
+      - key: BLOG_PUBLIC_URL
+        value: https://shereblog-news.onrender.com
+      - key: BLOG_WEBHOOK_SECRET
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL

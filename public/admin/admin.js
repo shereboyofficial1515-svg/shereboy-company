@@ -52,7 +52,7 @@
   // =========================================================
   // API (adds the CSRF token to every write)
   // =========================================================
-  const state = { user: null, csrf: '', projects: [], migrated: true, services: [], messages: [], posts: [], reviews: [], company: null };
+  const state = { user: null, csrf: '', projects: [], migrated: true, services: [], messages: [], reviews: [], company: null };
 
   async function refreshSession() {
     const res = await fetch('/api/auth/session', { credentials: 'same-origin', cache: 'no-store' });
@@ -440,7 +440,7 @@
     services: { title: 'Services', load: () => loadServices() },
     company: { title: 'About the Company', load: () => loadCompany() },
     media: { title: 'Images & Documents', load: () => loadMedia() },
-    insights: { title: 'Insights (Blog)', load: () => loadPosts() },
+    blog: { title: 'SHEREBOY BLOG Connection', load: () => loadBlogConnection() },
     reviews: { title: 'Client Reviews', load: () => loadReviews() },
     messages: { title: 'Contact Messages', load: () => loadMessages() },
     accounts: { title: 'Administrator Accounts', load: () => loadAccounts(), admin: true },
@@ -449,7 +449,7 @@
 
   function route() {
     const [path, query = ''] = location.hash.replace(/^#\/?/, '').split('?');
-    let view = VIEWS[path] ? path : 'overview';
+    let view = VIEWS[path] ? path : (path === 'insights' ? 'blog' : 'overview');
     if (VIEWS[view].admin && !isAdmin()) { toast('Only administrators can open that section.', 'error'); view = 'overview'; }
     $$('.view').forEach(v => { v.hidden = v.id !== `view-${view}`; });
     $$('#sidebarNav a').forEach(a => {
@@ -523,10 +523,9 @@
   async function primeSearch() {
     if (searchPrimed) return;
     searchPrimed = true;
-    const [p, s, b] = await Promise.allSettled([api('/api/projects/admin/all'), api('/api/services/admin/all'), api('/api/blog/admin/all')]);
+    const [p, s] = await Promise.allSettled([api('/api/projects/admin/all'), api('/api/services/admin/all')]);
     if (p.status === 'fulfilled') state.projects = p.value.projects || [];
     if (s.status === 'fulfilled') state.services = s.value.services || [];
-    if (b.status === 'fulfilled') state.posts = b.value.posts || [];
   }
   searchInput.addEventListener('focus', primeSearch);
   searchInput.addEventListener('input', debounce(() => {
@@ -536,8 +535,7 @@
     const groups = [
       ['Projects', state.projects.filter(p => hit(p.title, p.client_name, p.category, (p.technologies || []).join(' '))).slice(0, 5).map(p => [`#/projects?edit=${p.id}`, p.title, p.category || ''])],
       ['Messages', state.messages.filter(m => hit(m.name, m.email, m.subject, m.message)).slice(0, 5).map(m => [`#/messages?open=${m.id}`, m.name, m.subject || m.email])],
-      ['Services', state.services.filter(s => hit(s.title, s.description)).slice(0, 4).map(s => ['#/services', s.title, 'Service'])],
-      ['Articles', state.posts.filter(p => hit(p.title, p.excerpt)).slice(0, 4).map(p => ['#/insights', p.title, p.published ? 'Published' : 'Draft'])]
+      ['Services', state.services.filter(s => hit(s.title, s.description)).slice(0, 4).map(s => ['#/services', s.title, 'Service'])]
     ].filter(([, items]) => items.length);
     searchResults.innerHTML = groups.length
       ? groups.map(([g, items]) => `<p class="search-results__group">${g}</p>${items.map(([href, t, sub]) => `<a href="${esc(href)}" role="option" data-close-pop>${esc(t)}<small>${esc(sub)}</small></a>`).join('')}`).join('')
@@ -650,7 +648,7 @@
     project_deleted: 'Project deleted', projects_reordered: 'Projects reordered', service_created: 'Service added', service_edited: 'Service edited',
     service_deleted: 'Service deleted', blog_created: 'Article added', blog_edited: 'Article edited', blog_deleted: 'Article deleted',
     review_created: 'Review added', review_edited: 'Review edited', review_deleted: 'Review deleted', company_updated: 'Company details updated',
-    contact_deleted: 'Message deleted', contact_read: 'Message read', contact_unread: 'Message marked unread', file_uploaded: 'File uploaded',
+    contact_deleted: 'Message deleted', blog_feed_refreshed: 'SHEREBOY BLOG refreshed', contact_read: 'Message read', contact_unread: 'Message marked unread', file_uploaded: 'File uploaded',
     media_edited: 'File description edited', media_replaced: 'File replaced', media_deleted: 'File deleted', admin_created: 'Account created',
     admin_updated: 'Account updated', admin_deleted: 'Account deleted'
   };
@@ -1011,14 +1009,13 @@
   async function loadAssetHealth() {
     const box = $('#assetHealth');
     box.innerHTML = '<span class="skeleton" style="width:60%"></span>';
-    const [c, p, b, r] = await Promise.allSettled([api('/api/company'), api('/api/projects/admin/all'), api('/api/blog/admin/all'), api('/api/reviews/admin/all')]);
+    const [c, p, r] = await Promise.allSettled([api('/api/company'), api('/api/projects/admin/all'), api('/api/reviews/admin/all')]);
     const company = c.status === 'fulfilled' ? c.value.company || {} : {};
     const assets = [
       { label: 'Company logo', url: company.logo_url, required: true, where: 'About the Company › Brand' },
       { label: 'Founder photograph', url: company.ceo_photo_url, required: true, where: 'About the Company › Founder' },
       { label: 'CAC Certificate of Incorporation', url: company.cac_document_url, required: true, where: 'About the Company › Registration' },
       ...(p.status === 'fulfilled' ? p.value.projects : []).map(x => ({ label: `Project: ${x.title}`, url: x.image_url, required: x.published, where: 'Manage Projects' })),
-      ...(b.status === 'fulfilled' ? b.value.posts : []).filter(x => x.featured_image_url).map(x => ({ label: `Article: ${x.title}`, url: x.featured_image_url, where: 'Insights' })),
       ...(r.status === 'fulfilled' ? r.value.reviews : []).filter(x => x.client_image_url).map(x => ({ label: `Review: ${x.client_name}`, url: x.client_image_url, where: 'Client Reviews' }))
     ];
     box.innerHTML = assets.map((a, i) => {
@@ -1153,42 +1150,74 @@
   });
 
   // =========================================================
-  // Insights (blog)
+  // SHEREBOY BLOG connection (read-only — articles are managed on SHEREBOY BLOG)
   // =========================================================
-  const postFields = [
-    { name: 'title', label: 'Title', required: true, maxlength: 200 },
-    { name: 'slug', label: 'Web address ending (optional)', hint: 'Leave blank to create one from the title, e.g. /blog/my-article.' },
-    { name: 'excerpt', label: 'Summary', type: 'textarea', rows: 3, maxlength: 500, hint: 'One or two sentences shown on the article card.' },
-    { name: 'featured_image_url', label: 'Cover image', type: 'image', folder: 'blog' },
-    { name: 'content', label: 'Article content', type: 'textarea', rows: 12, required: true, hint: 'Plain paragraphs (separated by a blank line) or HTML.' },
-    { name: 'author', label: 'Author', maxlength: 100 },
-    { name: 'published', label: 'Visible on website', type: 'switch' },
-    { name: 'featured', label: 'Featured article', type: 'switch' }
-  ];
-  async function loadPosts() {
-    const tbody = $('#blogTable tbody');
-    tbody.innerHTML = skeletonRows(5);
-    try {
-      const { posts } = await api('/api/blog/admin/all');
-      state.posts = posts || [];
-      tbody.innerHTML = state.posts.length ? state.posts.map(p => `<tr>
-        <td class="cell-main"><div class="row-title">${thumb(p.featured_image_url)}<div><strong>${esc(p.title)}</strong><small>/blog/${esc(p.slug)}</small></div></div></td>
-        <td data-label="Featured">${p.featured ? '<span class="pill pill--blue">Featured</span>' : '—'}</td>
-        <td data-label="Visibility">${visibilityPill(p.published)}</td>
-        <td data-label="Updated">${timeAgo(p.updated_at || p.created_at)}</td>
-        <td class="col-actions"><div class="row-actions">${btnIcon('edit', `Edit ${p.title}`, `data-edit="${esc(p.id)}"`)}${p.published ? `<a class="icon-btn icon-btn--sm" href="/blog/${esc(p.slug)}" target="_blank" rel="noopener" aria-label="View on website" title="View on website">${icon('external')}</a>` : ''}${btnIcon('trash', `Delete ${p.title}`, `data-delete="${esc(p.id)}"`, 'icon-btn--danger')}</div></td></tr>`).join('')
-        : '<tr><td colspan="5" class="table-empty">No articles yet.</td></tr>';
-    } catch (err) { tbody.innerHTML = errorRow(5, err.message, 'insights'); }
+  function fmtDateTime(iso) {
+    return iso ? new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
   }
-  $('#blogTable').addEventListener('click', (e) => {
-    const t = e.target.closest('button');
-    if (!t) return;
-    const p = state.posts.find(x => x.id === (t.dataset.edit || t.dataset.delete));
-    if (!p) return;
-    if (t.dataset.edit) openForm({ title: 'Edit article', fields: postFields, initial: p, onSubmit: async (v) => { await api(`/api/blog/${p.id}`, { method: 'PUT', body: json(v) }); loadPosts(); } });
-    else deleteItem({ label: `“${p.title}”`, url: `/api/blog/${p.id}`, after: loadPosts });
+  function renderBlogConnection(s) {
+    const conn = s.connection || {};
+    const live = conn.ok === true;
+    const stat = (label, value, sub = '') => `<div class="blog-conn__stat"><span>${label}</span><strong>${value}</strong>${sub ? `<small>${sub}</small>` : ''}</div>`;
+    const blogUrl = safeUrl(s.blogUrl);
+    if (blogUrl) $('#blogOpenBtn').href = `${blogUrl}/`;
+    $('#blogConnection').innerHTML = `
+      <div class="blog-conn__status ${live ? 'is-ok' : 'is-down'}">
+        <span class="blog-conn__dot" aria-hidden="true"></span>
+        <div>
+          <strong>${live ? 'Connected to SHEREBOY BLOG' : 'SHEREBOY BLOG is not responding'}</strong>
+          <p>${live
+    ? `The public articles API answered in ${conn.responseMs} ms.`
+    : `${esc(conn.error || 'The connection check failed.')} The website keeps working${s.cachedArticles ? ' and shows the last saved articles' : ''} until the blog is back.`}</p>
+        </div>
+      </div>
+      <div class="blog-conn__grid">
+        ${stat('Blog platform', 'SHEREBOY BLOG', blogUrl ? `<a href="${esc(blogUrl)}/" target="_blank" rel="noopener noreferrer">${esc(blogUrl.replace(/^https?:\/\//, ''))}</a>` : '')}
+        ${stat('API availability', live ? '<span class="pill pill--green">Available</span>' : '<span class="pill pill--red">Unavailable</span>', `<code>${esc((s.apiUrl || '').replace(/^https?:\/\//, ''))}</code>`)}
+        ${stat('Published articles', live && conn.publishedCount !== null ? conn.publishedCount : (s.totalPublished ?? '—'), live ? 'Live count from the blog' : 'From the last successful sync')}
+        ${stat('Last successful sync', s.lastSuccessAt ? timeAgo(s.lastSuccessAt) : 'Never', fmtDateTime(s.lastSuccessAt))}
+        ${stat('Last sync error', s.lastError ? '<span class="pill pill--red">Error</span>' : '<span class="pill pill--green">None</span>', s.lastError ? `${esc(s.lastError)} · ${fmtDateTime(s.lastErrorAt)}` : '')}
+        ${stat('Automatic updates', s.webhookConfigured ? 'Instant + every few minutes' : `Every ${Math.round(s.cacheTtlSeconds / 60)} minutes`, s.webhookConfigured ? 'Webhook from SHEREBOY BLOG is configured' : 'Set BLOG_WEBHOOK_SECRET to enable instant updates')}
+      </div>`;
+  }
+
+  async function loadBlogConnection() {
+    $('#blogConnection').innerHTML = '<div class="card"><span class="skeleton" style="width:40%"></span><span class="skeleton" style="width:70%"></span></div>';
+    $('#blogArticles').innerHTML = '<span class="skeleton" style="width:60%"></span>';
+    try {
+      const [status, feed] = await Promise.all([api('/api/blog-feed/admin/status'), api('/api/blog-feed')]);
+      renderBlogConnection(status);
+      renderBlogArticles(feed);
+    } catch (err) {
+      $('#blogConnection').innerHTML = `<div class="error-row">${icon('warning')}${esc(err.message)}<button type="button" class="retry-btn" data-retry="blog">Try again</button></div>`;
+      $('#blogArticles').innerHTML = '';
+    }
+  }
+
+  function renderBlogArticles(feed) {
+    const list = (feed && feed.articles) || [];
+    $('#blogArticles').innerHTML = list.length
+      ? `<ul class="blog-list">${list.map(a => `<li>
+          ${thumb(a.image && a.image.url)}
+          <div><a href="${esc(safeUrl(a.url))}" target="_blank" rel="noopener noreferrer"><strong>${esc(a.title)}</strong></a>
+          <small>${[a.category && a.category.name, a.author && a.author.name, fmtDate(a.publishedAt)].filter(Boolean).map(esc).join(' · ')}${a.isFeatured ? ' · <span class="pill pill--blue">Featured</span>' : ''}</small></div>
+        </li>`).join('')}</ul>`
+      : `<div class="empty">${icon('blog')}<p>${feed && feed.status === 'unavailable' ? 'No articles can be shown until SHEREBOY BLOG is reachable.' : 'No published articles yet. Publish an article on SHEREBOY BLOG and it will appear here.'}</p></div>`;
+  }
+
+  $('#blogRefreshBtn').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    setLoading(btn, true, 'Refreshing…');
+    try {
+      await api('/api/blog-feed/admin/refresh', { method: 'POST' });
+      toast('Articles refreshed from SHEREBOY BLOG.', 'success');
+    } catch (err) {
+      toast(`Refresh failed: ${err.message}`, 'error', 6000);
+    } finally {
+      setLoading(btn, false);
+      loadBlogConnection();
+    }
   });
-  $('#newPostBtn').addEventListener('click', () => openForm({ title: 'New article', fields: postFields, initial: { author: 'SHEREBOY TECH LTD', published: false }, submitLabel: 'Create article', onSubmit: async (v) => { await api('/api/blog', { method: 'POST', body: json(v) }); loadPosts(); } }));
 
   // =========================================================
   // Reviews

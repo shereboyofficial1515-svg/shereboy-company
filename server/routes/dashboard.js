@@ -31,9 +31,8 @@ router.get('/stats', requireAuth, async (req, res) => {
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5, 1);
     sixMonthsAgo.setHours(0, 0, 0, 0);
 
-    const [projects, posts, reviews, messages, unreadMessages, services, company, recentMessages, activity] = await Promise.all([
+    const [projects, reviews, messages, unreadMessages, services, company, recentMessages, activity] = await Promise.all([
       supabase.from('projects').select('published, featured, status, category, live_url, image_url'),
-      supabase.from('blog_posts').select('published'),
       supabase.from('reviews').select('published'),
       supabase.from('contact_messages').select('id', { count: 'exact', head: true }),
       supabase.from('contact_messages').select('id', { count: 'exact', head: true }).eq('read', false),
@@ -78,8 +77,6 @@ router.get('/stats', requireAuth, async (req, res) => {
       projectsMissingImage: count(projectRows, p => !p.image_url),
       projectsByStatus: byStatus,
       projectsByCategory: byCategory,
-      totalPosts: (posts.data || []).length,
-      publishedPosts: count(posts.data, p => p.published),
       totalReviews: (reviews.data || []).length,
       publishedReviews: count(reviews.data, r => r.published),
       totalServices: (services.data || []).length,
