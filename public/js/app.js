@@ -918,13 +918,19 @@
   }
   blogFeedEl.addEventListener('click', (e) => { if (e.target.closest('[data-blog-retry]')) loadBlogFeed(); });
 
-  // Load when the section approaches the viewport (no request for visitors who never scroll there)
+  // Load when the section approaches the viewport, or a few seconds after the page
+  // settles (safety net for jumps the observer can miss). Answered from our server's
+  // in-memory cache, so this never adds load to SHEREBOY BLOG itself.
   (function initBlogFeed() {
-    if (!('IntersectionObserver' in window) || location.hash === '#insights') { loadBlogFeed(); return; }
+    let started = false;
+    const start = () => { if (!started) { started = true; loadBlogFeed(); } };
+    if (!('IntersectionObserver' in window) || location.hash === '#insights') { start(); return; }
     const io = new IntersectionObserver((entries) => {
-      if (entries.some(e => e.isIntersecting)) { io.disconnect(); loadBlogFeed(); }
+      if (entries.some(e => e.isIntersecting)) { io.disconnect(); start(); }
     }, { rootMargin: '800px 0px' });
     io.observe($('#insights'));
+    const later = () => setTimeout(() => { io.disconnect(); start(); }, 4000);
+    if (document.readyState === 'complete') later(); else window.addEventListener('load', later, { once: true });
   })();
 
   // =========================================================
