@@ -375,6 +375,36 @@ function staticPage(pageKey) {
   };
 }
 
+// Confirm and unsubscribe pages. The action happens on a button press in the page,
+// never on opening the link, because email security scanners open links by themselves.
+function newsletterPage(kind) {
+  const copy = {
+    confirm: { title: 'Confirm your subscription', button: 'Confirm my subscription', text: 'Press the button to confirm that you want updates from SHEREBOY TECH LTD.' },
+    unsubscribe: { title: 'Unsubscribe', button: 'Unsubscribe me', text: 'Press the button to stop receiving marketing emails from SHEREBOY TECH LTD. No sign-in is needed.' }
+  }[kind];
+  return async (req, res) => {
+    const { company, services } = await siteData();
+    const top = `<section class="section newsletter-page" aria-labelledby="newsletterPageTitle">
+      <div class="container newsletter-page__inner" data-newsletter-page="${kind}">
+        <h1 class="section-title" id="newsletterPageTitle">${esc(copy.title)}</h1>
+        <p class="section-lede" data-newsletter-page-text>${esc(copy.text)}</p>
+        <button type="button" class="btn btn--primary btn--lg" data-newsletter-page-action>${esc(copy.button)}</button>
+        <p class="newsletter-page__status" data-newsletter-page-status role="status"></p>
+        <a class="link-btn" href="/">Back to the website</a>
+      </div>
+    </section>`;
+    const html = renderShell('newsletterpage', {
+      title: `${copy.title} | ${COMPANY}`,
+      description: copy.text,
+      url: `${SITE()}/newsletter/${kind}`,
+      company, services, top, robots: 'noindex, nofollow'
+    });
+    // Tokens are in the address: never cached, never passed on as a referrer
+    res.set('Referrer-Policy', 'no-referrer');
+    res.status(200).set('Cache-Control', 'no-store').type('html').send(html);
+  };
+}
+
 async function notFound(req, res) {
   const { company, services } = await siteData();
   send(res, renderShell('notfound', {
@@ -482,5 +512,5 @@ async function status() {
 }
 
 module.exports = {
-  staticPage, notFound, projectPage, sitemap, robots, status, refreshSiteData, PAGES
+  staticPage, notFound, projectPage, newsletterPage, sitemap, robots, status, refreshSiteData, PAGES
 };

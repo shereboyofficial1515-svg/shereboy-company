@@ -28,7 +28,7 @@ const TYPES = {
 };
 const MAX_SIZE = Math.max(...Object.values(TYPES).map(t => t.max));
 // (the old 'blog' folder is retired — articles and their images are managed on SHEREBOY BLOG)
-const FOLDERS = ['projects', 'reviews', 'company', 'documents', 'media'];
+const FOLDERS = ['email', 'projects', 'reviews', 'company', 'documents', 'media'];
 
 const multerSingle = multer({
   storage: multer.memoryStorage(),

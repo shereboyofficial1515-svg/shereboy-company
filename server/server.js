@@ -29,6 +29,10 @@ const contactRoutes = require('./routes/contact');
 const mediaRoutes = require('./routes/media');
 const adminUserRoutes = require('./routes/adminUsers');
 const systemRoutes = require('./routes/system');
+const newsletterRoutes = require('./routes/newsletter');
+const emailWebhookRoutes = require('./routes/emailWebhook');
+const emailMarketingRoutes = require('./routes/emailMarketing');
+const mailWorker = require('./mail/worker');
 const seo = require('./seo');
 const crypto = require('crypto');
 const serviceMonitor = require('./serviceMonitor');
@@ -106,6 +110,10 @@ app.use(session({
   }
 }));
 
+// Resend's signed delivery events can arrive in bursts from a few addresses, so they
+// come before the general limit. Everything here checks a signature or secret.
+app.use('/api/email', emailWebhookRoutes);
+
 // --- General API rate limiting ---
 app.use('/api', apiLimiter);
 
@@ -126,6 +134,8 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/admin', adminUserRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/email', emailMarketingRoutes);
 
 // Unknown API routes return JSON 404s (never the HTML app shell)
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }));
@@ -146,6 +156,8 @@ app.get('/projects', pageRoute, seo.staticPage('projects'));
 app.get('/contact', pageRoute, seo.staticPage('contact'));
 app.get('/affiliate-products', pageRoute, seo.staticPage('affiliate'));
 app.get('/projects/:id', pageRoute, seo.projectPage);
+app.get('/newsletter/confirm', seo.newsletterPage('confirm'));
+app.get('/newsletter/unsubscribe', seo.newsletterPage('unsubscribe'));
 // Old internal article URLs: articles now live on SHEREBOY BLOG — send visitors to the Insights section
 app.get(['/blog', '/blog/:slug'], (req, res) => res.redirect(301, '/#insights'));
 
@@ -202,5 +214,6 @@ app.listen(PORT, () => {
   blogFeed.startPeriodicRefresh();
   affiliateFeed.startPeriodicRefresh();
   seo.refreshSiteData();
+  mailWorker.startWorker();
   console.log(`SHEREBOY TECH LTD server running on port ${PORT}`);
 });

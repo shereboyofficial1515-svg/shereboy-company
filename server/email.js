@@ -7,7 +7,7 @@
 // so the app keeps working even before you configure email.
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
-const FROM_ADDRESS = process.env.RESEND_FROM || 'SHEREBOY TECH <onboarding@resend.dev>';
+const FROM_ADDRESS = process.env.RESEND_FROM_EMAIL || process.env.RESEND_FROM || 'SHEREBOY TECH <onboarding@resend.dev>';
 
 async function sendEmail({ subject, html, to }) {
     const apiKey = process.env.RESEND_API_KEY;

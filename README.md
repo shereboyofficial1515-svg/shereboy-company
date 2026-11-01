@@ -233,6 +233,44 @@ Submitting a sitemap asks Google to read it. It does not guarantee indexing or r
 database. It never contacts Supabase or the live site. Do not write-test against the values in
 `.env`: they point at the production database.
 
+## 17. Email marketing and newsletter (Resend)
+
+**Set up, in this order:**
+
+1. Create or open your account at [resend.com](https://resend.com) and create an API key. A
+   **Full access** key also keeps Resend's contact list in step with your subscribers. A
+   **Sending access** key sends everything fine, but contacts won't appear in Resend's dashboard.
+2. Under **Domains**, add `shereboytechltd.site` and copy the records Resend shows into your DNS.
+   - **DKIM:** a TXT record, normally at `resend._domainkey`.
+   - **SPF:** a TXT and an MX record on the `send` subdomain. A name may only have **one** SPF
+     record, so remove any other `v=spf1` record there.
+   - **DMARC:** a TXT record at `_dmarc`. Start with `v=DMARC1; p=none`, and tighten it once mail is
+     passing reliably.
+3. Press **Verify** and wait until the domain shows as verified. Until then Resend only sends to your
+   own account address, so subscribers can't receive anything.
+4. Under **Webhooks**, add `https://shereboytechltd.site/api/email/webhook` with all email events
+   selected, and copy its signing secret.
+5. On Render, set `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_REPLY_TO`, `RESEND_WEBHOOK_SECRET`,
+   `APP_BASE_URL` and `EMAIL_TOKEN_SECRET` (see `.env.example`). Add these to what is there; don't
+   replace existing variables.
+6. Back up the database, then run `database/migrations/2026-11-02-email-marketing.sql`.
+7. Subscribe with your own address, confirm it, and open **Admin > Email Marketing**. Send yourself a
+   test email, and check that the delivery status updates.
+
+**How sending works:** campaigns are queued in the database and sent in batches in the background, so
+a restart loses nothing and can't send twice. **Accepted** means Resend took the message; **Delivered**
+only appears after Resend's signed webhook confirms it. Opens and clicks are incomplete by nature,
+because of mail-app privacy features.
+
+**Free hosting:** a sleeping server can't send. A scheduled campaign goes out when the server next
+wakes, so to keep to the time, have a scheduler call `POST /api/email/cron` with the header
+`Authorization: Bearer <EMAIL_CRON_SECRET>` every few minutes, or use a paid always-on plan.
+
+**Who can do what:** only administrators can open the email center. Nobody can resubscribe someone
+who opted out; only that person's own confirmed request can. Removing a subscriber keeps their address
+on the suppression list. **Individual emails** are for people who expect to hear from you, and are
+limited to 10 recipients per send and 50 per 24 hours. Bulk email goes only to confirmed subscribers.
+
 ## Project structure
 
 ```

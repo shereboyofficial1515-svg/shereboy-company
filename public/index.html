@@ -648,6 +648,28 @@ app.<span class="f">get</span>(<span class="s">'/api/orders'</span>, <span class
 
     <!-- ============ 10. CTA ============ -->
     <!-- page:home,about,services,projects,project -->
+    <section class="newsletter" aria-labelledby="newsletterTitle">
+      <div class="container newsletter__inner">
+        <div>
+          <h2 class="section-title" id="newsletterTitle">Stay Ahead of What's Next.</h2>
+          <p class="section-lede">Get the latest company news, product launches, technology insights and exclusive updates from SHEREBOY TECH LTD directly in your inbox.</p>
+        </div>
+        <form class="newsletter-form " data-newsletter-form novalidate>
+            <div class="newsletter-form__row">
+              <label class="sr-only" for="newsletterEmail">Email address</label>
+              <input type="email" id="newsletterEmail" name="email" placeholder="you@example.com" autocomplete="email" maxlength="254" required>
+              <!-- Left empty by people; bots fill it in -->
+              <input type="text" name="website" class="newsletter-form__trap" tabindex="-1" autocomplete="off" aria-hidden="true">
+              <button type="submit" class="btn btn--primary">Subscribe to Updates</button>
+            </div>
+            <p class="newsletter-form__status" data-newsletter-status role="status" hidden></p>
+            <p class="newsletter-form__notice">We only use your email to send these updates. We'll ask you to confirm first, and every email has an unsubscribe link.</p>
+          </form>
+      </div>
+    </section>
+    <!-- /page -->
+
+    <!-- page:home,about,services,projects,project -->
     <section class="cta-band" aria-labelledby="ctaTitle">
       <div class="container cta-band__inner reveal">
         <div>
@@ -747,6 +769,23 @@ app.<span class="f">get</span>(<span class="s">'/api/orders'</span>, <span class
 
   <!-- ============ FOOTER ============ -->
   <footer class="footer">
+    <div class="container footer__newsletter">
+      <div>
+        <h3>Get company updates by email</h3>
+        <p>News, product launches and technology insights.</p>
+      </div>
+      <form class="newsletter-form newsletter-form--compact" data-newsletter-form novalidate>
+            <div class="newsletter-form__row">
+              <label class="sr-only" for="footerNewsletterEmail">Email address</label>
+              <input type="email" id="footerNewsletterEmail" name="email" placeholder="you@example.com" autocomplete="email" maxlength="254" required>
+              <!-- Left empty by people; bots fill it in -->
+              <input type="text" name="website" class="newsletter-form__trap" tabindex="-1" autocomplete="off" aria-hidden="true">
+              <button type="submit" class="btn btn--primary">Subscribe to Updates</button>
+            </div>
+            <p class="newsletter-form__status" data-newsletter-status role="status" hidden></p>
+            <p class="newsletter-form__notice">We only use your email to send these updates. We'll ask you to confirm first, and every email has an unsubscribe link.</p>
+          </form>
+    </div>
     <div class="container footer__inner">
       <div class="footer__brand">
         <a href="/" class="footer__logo" aria-label="SHEREBOY TECH LTD — home">

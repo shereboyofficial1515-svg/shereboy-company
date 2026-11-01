@@ -6,7 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server/server.js",
-    "test": "node --test test/site.test.js",
+    "test": "node --test test/site.test.js test/email.test.js",
     "dev": "node -e \"process.env.NODE_ENV='development';require('./server/server.js')\""
   },
   "dependencies": {
@@ -20,7 +20,9 @@
     "express-rate-limit": "^7.4.0",
     "express-session": "^1.18.0",
     "helmet": "^7.1.0",
-    "multer": "^2.0.0"
+    "multer": "^2.0.0",
+    "resend": "^6.37.0",
+    "sanitize-html": "^2.18.1"
   },
   "engines": {
     "node": ">=18.0.0"
