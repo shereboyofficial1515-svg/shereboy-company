@@ -89,6 +89,7 @@
       <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4L10 14M19 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/></g></symbol>
       <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="i-web" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9S14.6 18.4 12 21c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/></g></symbol>
       <symbol id="i-app" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 8.5h18M7 13h4M7 16.5h7" stroke-linecap="round"/><circle cx="16.5" cy="14.5" r="2"/></g></symbol>
@@ -149,6 +150,7 @@
         <a href="/#work" data-nav="work">Our Work</a>
         <a href="/#about" data-nav="about">About Us</a>
         <a href="/#insights" data-nav="insights" id="navInsights">Insights</a>
+        <a href="/affiliate-products" data-nav-page="affiliate">Affiliate Product</a>
         <a href="/#contact" data-nav="contact">Contact</a>
       </nav>
       <a href="/#contact" class="btn btn--primary btn--sm nav__cta" data-start-project>Start a Project</a>
@@ -172,7 +174,8 @@
         <a href="/#work"><span>03</span>Our Work</a>
         <a href="/#about"><span>04</span>About Us</a>
         <a href="/#insights" id="drawerInsights"><span>05</span>Insights</a>
-        <a href="/#contact"><span>06</span>Contact</a>
+        <a href="/affiliate-products" data-nav-page="affiliate"><span>06</span>Affiliate Product</a>
+        <a href="/#contact"><span>07</span>Contact</a>
       </nav>
       <div class="drawer__foot">
         <a href="/#contact" class="btn btn--primary btn--block" data-start-project>Start a Project <svg class="icon"><use href="#i-arrow"/></svg></a>
@@ -185,6 +188,52 @@
   </div>
 
   <main id="main">
+
+    <!-- ============ AFFILIATE PRODUCT SHOWCASE (/affiliate-products only) ============ -->
+    <section class="aff-page" id="affiliate-page" aria-labelledby="affTitle" hidden>
+      <div class="aff-hero">
+        <div class="hero__bg" aria-hidden="true"><div class="hero__grid"></div><div class="hero__glow hero__glow--a"></div></div>
+        <div class="container aff-hero__inner">
+          <p class="eyebrow brand-label"><span class="brand-label__mark brand-label__mark--aff" aria-hidden="true">SA</span>Powered by SHEREBOY AFFILIATE CONCEPT</p>
+          <h1 class="aff-hero__title" id="affTitle">Discover Products Worth Exploring.</h1>
+          <p class="aff-hero__lede">Explore our curated collection of products, carefully presented to help you discover useful products and exciting offers.</p>
+          <div class="aff-hero__actions">
+            <a class="btn btn--ghost" href="https://shereboyaffiliateconcept.shop/" data-aff-home target="_blank" rel="noopener">Visit SHEREBOY AFFILIATE CONCEPT <svg class="icon"><use href="#i-arrow-up-right"/></svg></a>
+          </div>
+        </div>
+      </div>
+
+      <div class="container aff-body">
+        <section class="aff-featured" id="affFeaturedWrap" aria-labelledby="affFeaturedTitle" hidden>
+          <div class="aff-subhead">
+            <h2 id="affFeaturedTitle">Featured products</h2>
+            <p>Hand-picked by SHEREBOY AFFILIATE CONCEPT.</p>
+          </div>
+          <div class="product-grid product-grid--featured" id="affFeatured"></div>
+        </section>
+
+        <section aria-labelledby="affAllTitle">
+          <div class="aff-subhead">
+            <h2 id="affAllTitle">All products</h2>
+            <p id="affCount" aria-live="polite"></p>
+          </div>
+          <form class="aff-toolbar" id="affToolbar" role="search" aria-label="Search and filter products">
+            <div class="aff-search">
+              <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+              <label for="affSearch" class="sr-only">Search products</label>
+              <input type="search" id="affSearch" name="q" placeholder="Search products" maxlength="80" autocomplete="off">
+            </div>
+            <div class="filters aff-cats" id="affCategories" role="group" aria-label="Filter by category"></div>
+          </form>
+          <div class="product-grid" id="affGrid" aria-live="polite" aria-busy="true"></div>
+          <div class="aff-more">
+            <button type="button" class="btn btn--ghost btn--lg" id="affLoadMore" hidden>Load more products</button>
+          </div>
+        </section>
+
+        <p class="aff-disclosure">Products, prices and availability are managed on SHEREBOY AFFILIATE CONCEPT and its partner stores and may change. Some links are affiliate links: SHEREBOY AFFILIATE CONCEPT may earn a commission from qualifying purchases at no extra cost to you.</p>
+      </div>
+    </section>
 
     <!-- ============ 1. HERO ============ -->
     <section class="hero" id="top" aria-labelledby="heroTitle">
@@ -560,6 +609,23 @@ app.<span class="f">get</span>(<span class="s">'/api/orders'</span>, <span class
       </div>
     </section>
 
+    <!-- ============ FEATURED PRODUCTS — from SHEREBOY AFFILIATE CONCEPT (read-only feed) ============ -->
+    <section class="section section--products" id="featured-products" aria-labelledby="productsTitle" hidden>
+      <div class="container">
+        <div class="section-head section-head--split">
+          <div>
+            <p class="eyebrow brand-label reveal"><span class="brand-label__mark brand-label__mark--aff" aria-hidden="true">SA</span>From SHEREBOY AFFILIATE CONCEPT</p>
+            <h2 class="section-title reveal" id="productsTitle">Featured Products</h2>
+          </div>
+          <div class="insights-head">
+            <p class="section-lede reveal">Explore selected products from SHEREBOY AFFILIATE CONCEPT.</p>
+            <a class="btn btn--ghost reveal" href="/affiliate-products">View All Products <svg class="icon"><use href="#i-arrow"/></svg></a>
+          </div>
+        </div>
+        <div class="product-grid product-grid--home" id="homeProducts"></div>
+      </div>
+    </section>
+
     <!-- ============ 9. FAQ ============ -->
     <section class="section section--faq" aria-labelledby="faqTitle">
       <div class="container faq">
@@ -715,6 +781,7 @@ app.<span class="f">get</span>(<span class="s">'/api/orders'</span>, <span class
         <a href="/#about">About Us</a>
         <a href="/#work">Our Work</a>
         <a href="/#insights" id="footerInsights">Insights</a>
+        <a href="/affiliate-products">Affiliate Products</a>
         <a href="/#registration">Company Registration</a>
       </nav>
       <nav class="footer__col" aria-label="Services">

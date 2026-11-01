@@ -11,6 +11,8 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const prefersReducedMotion = document.documentElement.classList.contains('reduced-motion');
+  // The same page shell serves the homepage and /affiliate-products (body[data-page="affiliate"])
+  const PAGE = document.body.dataset.page === 'affiliate' ? 'affiliate' : 'home';
 
   $('#year').textContent = new Date().getFullYear();
 
@@ -32,6 +34,22 @@
     const u = String(url).trim();
     if (u.startsWith('/') && !u.startsWith('//')) return u;
     return isHttpUrl(u) ? u : '';
+  }
+  function debounce(fn, ms) {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+  }
+  // Runs fn when el nears the viewport, or a few seconds after load as a safety net
+  function whenNear(el, fn, rootMargin = '800px 0px') {
+    let started = false;
+    const start = () => { if (!started) { started = true; fn(); } };
+    if (!el || !('IntersectionObserver' in window)) { start(); return; }
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some(e => e.isIntersecting)) { io.disconnect(); start(); }
+    }, { rootMargin });
+    io.observe(el);
+    const later = () => setTimeout(() => { io.disconnect(); start(); }, 4000);
+    if (document.readyState === 'complete') later(); else window.addEventListener('load', later, { once: true });
   }
   function hostOf(url) { try { return new URL(url, location.origin).host; } catch { return ''; } }
   function formatDate(d, opts = { day: 'numeric', month: 'short', year: 'numeric' }) {
@@ -921,17 +939,10 @@
   // Load when the section approaches the viewport, or a few seconds after the page
   // settles (safety net for jumps the observer can miss). Answered from our server's
   // in-memory cache, so this never adds load to SHEREBOY BLOG itself.
-  (function initBlogFeed() {
-    let started = false;
-    const start = () => { if (!started) { started = true; loadBlogFeed(); } };
-    if (!('IntersectionObserver' in window) || location.hash === '#insights') { start(); return; }
-    const io = new IntersectionObserver((entries) => {
-      if (entries.some(e => e.isIntersecting)) { io.disconnect(); start(); }
-    }, { rootMargin: '800px 0px' });
-    io.observe($('#insights'));
-    const later = () => setTimeout(() => { io.disconnect(); start(); }, 4000);
-    if (document.readyState === 'complete') later(); else window.addEventListener('load', later, { once: true });
-  })();
+  if (PAGE === 'home') {
+    if (location.hash === '#insights') loadBlogFeed();
+    else whenNear($('#insights'), loadBlogFeed);
+  }
 
   // =========================================================
   // Client-side route: /projects/:id
@@ -1126,11 +1137,232 @@
   });
 
   // =========================================================
+  // Affiliate products — read-only feed from SHEREBOY AFFILIATE CONCEPT
+  // Products are managed on the affiliate platform; this site only shows them
+  // (via our server's cache) and links each one to its own destination there.
+  // =========================================================
+  function formatPrice(amount, currency) {
+    if (typeof amount !== 'number' || !Number.isFinite(amount)) return '';
+    try {
+      return new Intl.NumberFormat('en-NG', { style: 'currency', currency: currency || 'NGN', maximumFractionDigits: amount >= 100 ? 0 : 2 }).format(amount);
+    } catch {
+      return `${currency || 'NGN'} ${amount.toLocaleString('en-NG')}`;
+    }
+  }
+
+  function productCard(p) {
+    const href = safeHref(p.url);
+    // Partner-store tracking links are marked sponsored; referrer is kept so attribution still works
+    const rel = p.urlType === 'partner-store' ? 'noopener sponsored' : 'noopener';
+    const name = escapeHtml(p.name);
+    const price = p.price || {};
+    const now = formatPrice(price.current, price.currency);
+    const was = price.previous ? formatPrice(price.previous, price.currency) : '';
+    const media = `<div class="media product__img media--loading">
+        <div class="media__fallback product__placeholder" aria-hidden="true">${icon('cart')}<span>Image coming soon</span></div>
+        ${p.image ? `<img class="media__img" src="${escapeHtml(p.image.url)}" alt="${escapeHtml(p.image.alt || p.name)}" loading="lazy" decoding="async">` : ''}
+      </div>
+      <div class="product__badges">
+        ${p.isFeatured ? `<span class="badge badge--featured">${icon('star')}Featured</span>` : (p.isDeal ? '<span class="badge badge--deal">Deal</span>' : '<span></span>')}
+        ${was && price.discountPercent ? `<span class="badge badge--save">−${price.discountPercent}%</span>` : ''}
+      </div>`;
+    return `<article class="product reveal">
+      ${href ? `<a class="product__media" href="${escapeHtml(href)}" target="_blank" rel="${rel}" tabindex="-1" aria-hidden="true">${media}</a>` : `<div class="product__media">${media}</div>`}
+      <div class="product__body">
+        ${p.category ? `<span class="product__cat">${escapeHtml(p.category.name)}</span>` : ''}
+        <h3 class="product__name">${href ? `<a href="${escapeHtml(href)}" target="_blank" rel="${rel}">${name}</a>` : name}</h3>
+        ${p.description ? `<p class="product__desc">${escapeHtml(p.description)}</p>` : ''}
+        ${now ? `<p class="product__price"><strong>${now}</strong>${was ? `<s aria-label="Previous price ${was}">${was}</s>` : ''}</p>` : ''}
+        ${p.availability === 'limited' ? '<p class="product__stock">Limited stock</p>' : ''}
+        ${href
+    ? `<a class="btn btn--primary btn--sm product__cta" href="${escapeHtml(href)}" target="_blank" rel="${rel}" aria-label="Explore ${name} on SHEREBOY AFFILIATE CONCEPT (opens in a new tab)">Explore Product ${icon('arrow-up-right')}</a>`
+    : '<span class="btn btn--sm product__cta is-disabled" aria-disabled="true">Currently unavailable</span>'}
+      </div>
+    </article>`;
+  }
+
+  function productSkeletons(n) {
+    return Array.from({ length: n }, () => '<div class="skeleton skeleton--product"></div>').join('');
+  }
+
+  function setAffiliateHome(url) {
+    const home = safeHref(url);
+    if (home) $$('[data-aff-home]').forEach(a => { a.href = `${home}/`; });
+  }
+
+  // ---------- Homepage: Featured Products (hidden unless real products exist) ----------
+  async function loadHomeProducts() {
+    const section = $('#featured-products');
+    const grid = $('#homeProducts');
+    try {
+      const res = await fetch('/api/affiliate-feed/featured?limit=4', { headers: { Accept: 'application/json' } });
+      const feed = await res.json();
+      if (!res.ok || !Array.isArray(feed.products) || !feed.products.length) return; // stay hidden — never an empty or broken block
+      grid.innerHTML = feed.products.map(productCard).join('');
+      section.hidden = false;
+      hydrateMedia(grid);
+      observeReveals(section);
+    } catch { /* optional section — stays hidden if the affiliate platform is unavailable */ }
+  }
+
+  // ---------- /affiliate-products: showcase page ----------
+  const aff = { q: '', category: '', page: 1, pageSize: 12, loading: false, ctrl: null };
+
+  function affState({ title, message, retry, clear }) {
+    const store = $('[data-aff-home]').getAttribute('href');
+    $('#affGrid').innerHTML = `<div class="blog-state">
+      <span class="blog-state__icon">${icon(retry ? 'warning' : 'cart')}</span>
+      <h3>${escapeHtml(title)}</h3>
+      <p>${escapeHtml(message)}</p>
+      <div class="blog-state__actions">
+        ${retry ? `<button type="button" class="btn btn--ghost" data-aff-retry>${icon('refresh')}Try again</button>` : ''}
+        ${clear ? `<button type="button" class="btn btn--ghost" data-aff-clear>${icon('close')}Clear search &amp; filters</button>` : ''}
+        <a class="btn btn--primary" href="${escapeHtml(store)}" target="_blank" rel="noopener">Visit SHEREBOY AFFILIATE CONCEPT ${icon('arrow-up-right')}</a>
+      </div>
+    </div>`;
+  }
+
+  function syncAffUrl() {
+    const params = new URLSearchParams();
+    if (aff.q) params.set('q', aff.q);
+    if (aff.category) params.set('category', aff.category);
+    const qs = params.toString();
+    history.replaceState(null, '', `/affiliate-products${qs ? `?${qs}` : ''}`);
+  }
+
+  function renderAffCategories(categories, total) {
+    const wrap = $('#affCategories');
+    if (!categories.length) { wrap.hidden = true; return; }
+    wrap.hidden = false;
+    wrap.innerHTML = [['', 'All', total], ...categories.map(c => [c.slug, c.name, c.count])].map(([slug, label, n]) =>
+      `<button type="button" class="filter ${slug === aff.category ? 'is-active' : ''}" data-aff-cat="${escapeHtml(slug)}" aria-pressed="${slug === aff.category}">${escapeHtml(label)} <span>${n}</span></button>`
+    ).join('');
+  }
+
+  async function loadAffProducts({ append = false } = {}) {
+    const grid = $('#affGrid');
+    const more = $('#affLoadMore');
+    if (aff.ctrl) aff.ctrl.abort();
+    const ctrl = new AbortController();
+    aff.ctrl = ctrl;
+    aff.loading = true;
+    grid.setAttribute('aria-busy', 'true');
+    if (append) setButtonLoading(more, true, 'Loading…');
+    else { grid.innerHTML = productSkeletons(6); more.hidden = true; }
+
+    const params = new URLSearchParams({ page: aff.page, pageSize: aff.pageSize });
+    if (aff.q) params.set('q', aff.q);
+    if (aff.category) params.set('category', aff.category);
+    const timer = setTimeout(() => ctrl.abort(), 30000);
+    try {
+      const res = await fetch(`/api/affiliate-feed/products?${params}`, { headers: { Accept: 'application/json' }, signal: ctrl.signal });
+      const feed = await res.json();
+      if (!res.ok || !Array.isArray(feed.products)) throw new Error(feed.error || 'bad response');
+      setAffiliateHome(feed.siteUrl);
+
+      if (feed.status === 'unavailable') {
+        $('#affCount').textContent = '';
+        $('#affCategories').hidden = true;
+        affState({ title: 'Products are temporarily unavailable', message: 'We couldn\'t reach SHEREBOY AFFILIATE CONCEPT just now. Please try again, or browse the products directly on the affiliate website.', retry: true });
+        return;
+      }
+      renderAffCategories(feed.categories || [], feed.catalogueSize || 0);
+      const { total, hasMore } = feed.pagination;
+      if (!total) {
+        $('#affCount').textContent = '';
+        if (aff.q || aff.category) affState({ title: 'No products match your search', message: aff.q ? `We couldn't find products matching “${aff.q}”. Try another word or clear the filters.` : 'There are no products in this category right now.', clear: true });
+        else affState({ title: 'New products are on the way', message: 'New products are on the way. Visit SHEREBOY AFFILIATE CONCEPT for the latest offers.' });
+        return;
+      }
+      const html = feed.products.map(productCard).join('');
+      if (append) {
+        grid.insertAdjacentHTML('beforeend', html);
+      } else {
+        grid.innerHTML = html;
+      }
+      const shown = grid.querySelectorAll('.product').length;
+      $('#affCount').textContent = `Showing ${shown} of ${total} product${total === 1 ? '' : 's'}${feed.status === 'stale' ? ' · recently saved list' : ''}`;
+      more.hidden = !hasMore;
+      hydrateMedia(grid);
+      observeReveals(grid);
+    } catch (err) {
+      if (ctrl.signal.aborted && aff.ctrl !== ctrl) return; // superseded by a newer search
+      affState({ title: 'Products are temporarily unavailable', message: 'We couldn\'t load products right now. Please try again, or visit SHEREBOY AFFILIATE CONCEPT directly.', retry: true });
+    } finally {
+      clearTimeout(timer);
+      if (aff.ctrl === ctrl) {
+        aff.loading = false;
+        grid.setAttribute('aria-busy', 'false');
+        setButtonLoading(more, false);
+      }
+    }
+  }
+
+  async function loadAffFeatured() {
+    try {
+      const res = await fetch('/api/affiliate-feed/featured?limit=8', { headers: { Accept: 'application/json' } });
+      const feed = await res.json();
+      const featured = (feed.products || []).filter(p => p.isFeatured);
+      const wrap = $('#affFeaturedWrap');
+      if (!res.ok || !featured.length) { wrap.hidden = true; return; }
+      $('#affFeatured').innerHTML = featured.slice(0, 4).map(productCard).join('');
+      wrap.hidden = !!(aff.q || aff.category);
+      hydrateMedia(wrap);
+      observeReveals(wrap);
+    } catch { $('#affFeaturedWrap').hidden = true; }
+  }
+
+  function applyAffFilters() {
+    aff.page = 1;
+    syncAffUrl();
+    // Featured strip only on the unfiltered view
+    if ($('#affFeatured').children.length) $('#affFeaturedWrap').hidden = !!(aff.q || aff.category);
+    loadAffProducts();
+  }
+
+  function initAffiliatePage() {
+    const params = new URLSearchParams(location.search);
+    aff.q = (params.get('q') || '').slice(0, 80);
+    const cat = params.get('category') || '';
+    aff.category = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(cat) ? cat : '';
+    $('#affSearch').value = aff.q;
+    $$('[data-nav-page="affiliate"]').forEach(a => { a.classList.add('is-active'); a.setAttribute('aria-current', 'page'); });
+
+    const onSearch = debounce(() => {
+      const next = $('#affSearch').value.trim().slice(0, 80);
+      if (next === aff.q) return;
+      aff.q = next;
+      applyAffFilters();
+    }, 300);
+    $('#affSearch').addEventListener('input', onSearch);
+    $('#affToolbar').addEventListener('submit', (e) => { e.preventDefault(); aff.q = $('#affSearch').value.trim().slice(0, 80); applyAffFilters(); });
+    $('#affCategories').addEventListener('click', (e) => {
+      const b = e.target.closest('[data-aff-cat]');
+      if (!b || b.dataset.affCat === aff.category) return;
+      aff.category = b.dataset.affCat;
+      applyAffFilters();
+    });
+    $('#affLoadMore').addEventListener('click', () => { if (!aff.loading) { aff.page += 1; loadAffProducts({ append: true }); } });
+    $('#affGrid').addEventListener('click', (e) => {
+      if (e.target.closest('[data-aff-retry]')) loadAffProducts();
+      if (e.target.closest('[data-aff-clear]')) { aff.q = ''; aff.category = ''; $('#affSearch').value = ''; applyAffFilters(); }
+    });
+
+    loadAffFeatured();
+    loadAffProducts();
+  }
+
+  // =========================================================
   // Boot
   // =========================================================
   loadCompany();
-  loadServices();
-  loadProjects();
-  loadReviews();
+  if (PAGE === 'affiliate') {
+    initAffiliatePage();
+  } else {
+    loadServices();
+    loadProjects();
+    loadReviews();
+    whenNear($('#featured-products'), loadHomeProducts);
+  }
   hydrateMedia();
 })();

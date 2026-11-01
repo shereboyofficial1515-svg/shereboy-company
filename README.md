@@ -137,6 +137,7 @@ For private admin documents, create a second Storage bucket named `sheroboytech-
 | **Services** | The “What We Build” section, including benefit checklists |
 | **About the Company** | Introduction, mission, vision, core values, founder photo & bio, CAC number and certificate (image or PDF), contact details, social links, logo |
 | **Images & Documents** | Checks every image the website uses (flags broken links), plus a media library: upload images/PDFs, descriptions (alt text), replace in place, private documents, delete |
+| **Affiliate Integration** | Read-only status of the SHEREBOY AFFILIATE CONCEPT integration: connection, API availability, available and featured product counts, last sync, last error, data-quality warnings, refresh button, link to the affiliate website |
 | **SHEREBOY BLOG Connection** | Read-only status of the blog integration: connection, API availability, last sync, published count, last error, refresh button, link to the blog |
 | **Client Reviews** | Genuine client reviews |
 | **Contact Messages** | Inbox with search, unread filter, reply by email/WhatsApp |
@@ -177,6 +178,31 @@ Setup: set `BLOG_WEBHOOK_SECRET` here and the same value as `COMPANY_SITE_WEBHOO
 SHEREBOY BLOG, plus `COMPANY_SITE_WEBHOOK_URL=https://shereboytechltd.site/api/blog-feed/webhook`
 on the blog. Without the webhook, new articles still appear within about 5 minutes.
 
+## 13. SHEREBOY AFFILIATE CONCEPT integration (Affiliate Product page)
+
+Products are managed only on **SHEREBOY AFFILIATE CONCEPT** (https://shereboyaffiliateconcept.shop);
+this site never stores or edits them.
+
+- **Navigation → Affiliate Product** opens `/affiliate-products`: featured products, search, category
+  filters (only categories that have products), Load More, and loading/empty/error states.
+- **Homepage → Featured Products** shows up to 4 products marked *featured* on the affiliate platform
+  (topped up with products marked *deal* if fewer than 4 are featured). The section stays hidden if
+  there are no products or the platform is unreachable.
+- **Explore Product** opens that product's own page on SHEREBOY AFFILIATE CONCEPT in a new tab. If that
+  page link is unusable, the partner-store tracking link is used exactly as supplied (every query
+  parameter preserved). Products with neither show a disabled "Currently unavailable" button.
+- Out-of-stock products are not showcased. Products don't get pages of their own here, so the
+  affiliate platform keeps ownership of each product URL in search engines.
+
+Sync works like the blog: the server reads `GET <AFFILIATE_API_BASE_URL>/api/public/products` (all
+pages), caches it in memory for `AFFILIATE_CACHE_TTL_SECONDS`, refreshes in the background, refreshes
+immediately on a signed webhook (`POST /api/affiliate-feed/webhook`, secret `AFFILIATE_WEBHOOK_SECRET`),
+and runs a periodic refresh every 15 minutes. If the platform is offline, the last good copy is used for
+up to `AFFILIATE_STALE_MAX_SECONDS` (6 h) and then a friendly "temporarily unavailable" message is shown.
+
+Setup on the affiliate platform: `COMPANY_SITE_WEBHOOK_URL=https://shereboytechltd.site/api/affiliate-feed/webhook`
+and `COMPANY_SITE_WEBHOOK_SECRET` equal to this site's `AFFILIATE_WEBHOOK_SECRET`.
+
 ## Project structure
 
 ```
@@ -195,6 +221,8 @@ sheroboytech/
 │   ├── auth.js                # Login/logout/session logic
 │   ├── activityLog.js
 │   ├── blogFeed.js            # Cached, validated client for the SHEREBOY BLOG public API
+│   ├── affiliateFeed.js       # Cached, validated client for the affiliate products API
+│   ├── webhookAuth.js         # Shared HMAC verification for partner webhooks
 │   ├── dbCompat.js            # Works before/after the 2026-10 migration
 │   ├── previewCheck.js        # Can a project website be shown in an iframe?
 │   ├── seo.js                 # sitemap.xml, robots.txt, per-page meta tags
@@ -205,6 +233,7 @@ sheroboytech/
 │       ├── projects.js
 │       ├── reviews.js
 │       ├── blogFeed.js       # SHEREBOY BLOG feed + webhook + admin status
+│       ├── affiliateFeed.js  # Affiliate products feed + webhook + admin status
 │       ├── services.js
 │       ├── company.js
 │       ├── aiChat.js          # Secure Gemini proxy

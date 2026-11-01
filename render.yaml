@@ -26,6 +26,12 @@ services:
         value: https://shereblog-news.onrender.com
       - key: BLOG_WEBHOOK_SECRET
         sync: false
+      - key: AFFILIATE_API_BASE_URL
+        value: https://shereboyaffiliateconcept.shop
+      - key: AFFILIATE_PUBLIC_URL
+        value: https://shereboyaffiliateconcept.shop
+      - key: AFFILIATE_WEBHOOK_SECRET
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL

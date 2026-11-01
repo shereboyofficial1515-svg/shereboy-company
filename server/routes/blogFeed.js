@@ -2,12 +2,12 @@
 // SHEREBOY BLOG integration. Read-only: this site never creates, edits or
 // deletes articles — it only displays published summaries from SHEREBOY BLOG.
 const express = require('express');
-const crypto = require('crypto');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 const blogFeed = require('../blogFeed');
 const { requireAuth } = require('../auth');
 const { logActivity } = require('../activityLog');
+const { createVerifier } = require('../webhookAuth');
 
 // GET /api/blog-feed — public
 router.get('/', async (req, res) => {
@@ -21,28 +21,11 @@ router.get('/', async (req, res) => {
 // POST /api/blog-feed/webhook — called by SHEREBOY BLOG when published content changes.
 // Signed with HMAC-SHA256 over "<timestamp>.<raw body>" using BLOG_WEBHOOK_SECRET.
 const webhookLimiter = rateLimit({ windowMs: 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests.' } });
-const MAX_SKEW_SECONDS = 300;
-const seen = new Map(); // signature -> expiry, prevents replaying the same call
+const verifyWebhook = createVerifier({ secretEnv: 'BLOG_WEBHOOK_SECRET', timestampHeader: 'x-shereblog-timestamp', signatureHeader: 'x-shereblog-signature' });
 
 router.post('/webhook', webhookLimiter, async (req, res) => {
-  const secret = process.env.BLOG_WEBHOOK_SECRET;
-  if (!secret) return res.status(503).json({ error: 'Webhook is not configured.' });
-
-  const timestamp = req.get('x-shereblog-timestamp') || '';
-  const given = (req.get('x-shereblog-signature') || '').replace(/^sha256=/, '');
-  const raw = req.rawBody ? req.rawBody.toString('utf8') : '';
-  const age = Math.abs(Date.now() / 1000 - Number(timestamp));
-  if (!/^\d{9,11}$/.test(timestamp) || !(age <= MAX_SKEW_SECONDS) || !/^[a-f0-9]{64}$/.test(given) || !raw) {
-    return res.status(401).json({ error: 'Invalid signature.' });
-  }
-  const expected = crypto.createHmac('sha256', secret).update(`${timestamp}.${raw}`).digest('hex');
-  if (!crypto.timingSafeEqual(Buffer.from(given, 'hex'), Buffer.from(expected, 'hex'))) {
-    return res.status(401).json({ error: 'Invalid signature.' });
-  }
-  const now = Date.now();
-  for (const [k, exp] of seen) if (exp < now) seen.delete(k);
-  if (seen.has(given)) return res.status(409).json({ error: 'Duplicate delivery.' });
-  seen.set(given, now + MAX_SKEW_SECONDS * 1000);
+  const check = verifyWebhook(req);
+  if (!check.ok) return res.status(check.status).json({ error: check.error });
 
   const { event, slug } = req.body || {};
   // Remove an unpublished/deleted article at once, even if the refresh below fails

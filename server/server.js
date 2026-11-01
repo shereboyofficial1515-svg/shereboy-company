@@ -18,6 +18,8 @@ const projectRoutes = require('./routes/projects');
 const reviewRoutes = require('./routes/reviews');
 const blogFeedRoutes = require('./routes/blogFeed');
 const blogFeed = require('./blogFeed');
+const affiliateFeedRoutes = require('./routes/affiliateFeed');
+const affiliateFeed = require('./affiliateFeed');
 const serviceRoutes = require('./routes/services');
 const companyRoutes = require('./routes/company');
 const aiChatRoutes = require('./routes/aiChat');
@@ -96,6 +98,8 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/reviews', reviewRoutes);
 // Articles come from SHEREBOY BLOG (read-only); the old internal /api/blog CMS is retired
 app.use('/api/blog-feed', blogFeedRoutes);
+// Products come from SHEREBOY AFFILIATE CONCEPT (read-only)
+app.use('/api/affiliate-feed', affiliateFeedRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/company', companyRoutes);
 app.use('/api/ai/chat', aiChatLimiter, aiChatRoutes);
@@ -113,6 +117,7 @@ app.get('/sitemap.xml', seo.sitemap);
 app.get('/robots.txt', seo.robots);
 app.get('/projects/:id', seo.projectPage);
 app.get('/', seo.homePage);
+app.get(['/affiliate-products', '/affiliate-products/'], seo.affiliatePage);
 // Old internal article URLs: articles now live on SHEREBOY BLOG — send visitors to the Insights section
 app.get(['/blog', '/blog/:slug'], (req, res) => res.redirect(301, '/#insights'));
 
@@ -157,5 +162,6 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   blogFeed.startPeriodicRefresh();
+  affiliateFeed.startPeriodicRefresh();
   console.log(`SHEREBOY TECH LTD server running on port ${PORT}`);
 });
