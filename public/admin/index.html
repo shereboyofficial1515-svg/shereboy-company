@@ -15,6 +15,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/admin/admin.css">
   <script src="/admin/admin.js" defer></script>
+  <script src="/admin/email.js" defer></script>
 </head>
 
 <body>
@@ -122,6 +123,7 @@
         <a href="#/messages" data-view="messages"><svg class="icon"><use href="#a-messages"/></svg><span>Contact Messages</span><b class="nav-badge" id="unreadBadge" hidden></b></a>
         <p class="sidebar__group" data-admin-only>Administration</p>
         <a href="#/accounts" data-view="accounts" data-admin-only><svg class="icon"><use href="#a-users"/></svg><span>Administrator Accounts</span></a>
+        <a href="#/email" data-view="email" data-admin-only><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.2"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5" stroke-linecap="round"/></g></svg><span>Email Marketing</span></a>
         <a href="#/system" data-view="system" data-admin-only><svg class="icon"><use href="#a-preview"/></svg><span>System</span></a>
         <a href="#/security" data-view="security" data-admin-only><svg class="icon"><use href="#a-shield"/></svg><span>Security &amp; Activity</span></a>
       </nav>
@@ -369,6 +371,21 @@
         </section>
 
         <!-- SECURITY -->
+        <section class="view" id="view-email" hidden>
+          <div class="view-head">
+            <div><h1>Email Marketing</h1><p>Subscribers, campaigns and delivery results, sent through Resend.</p></div>
+          </div>
+          <div class="em-tabs" id="emailTabs" role="tablist" aria-label="Email marketing sections">
+            <button type="button" role="tab" data-em-tab="overview">Overview</button>
+            <button type="button" role="tab" data-em-tab="subscribers">Subscribers</button>
+            <button type="button" role="tab" data-em-tab="compose">Compose</button>
+            <button type="button" role="tab" data-em-tab="campaigns">Campaigns</button>
+            <button type="button" role="tab" data-em-tab="templates">Templates</button>
+            <button type="button" role="tab" data-em-tab="settings">Settings</button>
+          </div>
+          <div id="emailCenter"></div>
+        </section>
+
         <section class="view" id="view-system" hidden>
           <div class="view-head">
             <div><h1>System</h1><p>Security overview, connected services, live previews and search engine setup.</p></div>
@@ -416,6 +433,14 @@
   </div>
 
   <!-- ===== Confirm dialog ===== -->
+  <div class="modal modal--wide" id="emailModal" role="dialog" aria-modal="true" aria-labelledby="emailModalTitle" hidden>
+    <div class="modal__backdrop" data-dismiss></div>
+    <div class="modal__panel">
+      <header class="modal__head"><h2 id="emailModalTitle">Email</h2><button class="icon-btn" type="button" data-dismiss aria-label="Close"><svg class="icon"><use href="#a-close"/></svg></button></header>
+      <div class="modal__body" id="emailModalBody"></div>
+    </div>
+  </div>
+
   <div class="modal" id="confirmModal" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmText" hidden>
     <div class="modal__backdrop" data-dismiss></div>
     <div class="modal__panel modal__panel--sm">

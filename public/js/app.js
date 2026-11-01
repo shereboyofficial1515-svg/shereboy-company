@@ -1479,6 +1479,91 @@
   }
 
   // =========================================================
+  // Newsletter: subscribe forms, and the confirm and unsubscribe pages
+  // =========================================================
+  const NEWSLETTER_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const newsletterSource = (form) => (form.classList.contains('newsletter-form--compact') ? 'footer' : (PAGE === 'home' ? 'homepage' : PAGE));
+
+  $$('[data-newsletter-form]').forEach((form) => {
+    const status = $('[data-newsletter-status]', form);
+    const button = $('button[type="submit"]', form);
+    const say = (text, kind) => {
+      status.textContent = text;
+      status.className = `newsletter-form__status newsletter-form__status--${kind}`;
+      status.hidden = false;
+    };
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = form.email.value.trim();
+      if (!NEWSLETTER_EMAIL.test(email)) {
+        say('Please enter a valid email address.', 'error');
+        form.email.setAttribute('aria-invalid', 'true');
+        form.email.focus();
+        return;
+      }
+      form.email.removeAttribute('aria-invalid');
+      setButtonLoading(button, true, 'Subscribing…');
+      try {
+        const res = await fetch('/api/newsletter/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({ email, source: newsletterSource(form), consent: true, website: form.website.value })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'We could not complete your subscription. Please try again.');
+        say(data.message, 'success');
+        form.reset();
+      } catch (err) {
+        say(err.message === 'Failed to fetch' ? 'You appear to be offline. Please check your connection and try again.' : err.message, 'error');
+      } finally {
+        setButtonLoading(button, false);
+      }
+    });
+  });
+
+  (function initNewsletterPage() {
+    const box = $('[data-newsletter-page]');
+    if (!box) return;
+    const kind = box.dataset.newsletterPage;
+    const token = new URLSearchParams(location.search).get('token') || '';
+    const text = $('[data-newsletter-page-text]', box);
+    const action = $('[data-newsletter-page-action]', box);
+    const status = $('[data-newsletter-page-status]', box);
+    const say = (message, kindOf) => { status.textContent = message; status.className = `newsletter-page__status newsletter-page__status--${kindOf}`; };
+    const stop = (message, kindOf = 'error') => { action.hidden = true; say(message, kindOf); };
+    if (!token) { stop('This link is incomplete. Please use the full link from your email.'); return; }
+    // Takes the token out of the address bar and browser history
+    history.replaceState(null, '', location.pathname);
+
+    const info = kind === 'confirm' ? 'confirm-info' : 'unsubscribe-info';
+    fetch(`/api/newsletter/${info}?token=${encodeURIComponent(token)}`, { headers: { Accept: 'application/json' } })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return stop(data.error || 'This link is not valid.');
+        text.textContent = kind === 'confirm'
+          ? `Press the button to confirm that ${data.email} should receive updates from SHEREBOY TECH LTD.`
+          : `Press the button to stop marketing emails to ${data.email}. No sign-in is needed.`;
+        return null;
+      })
+      .catch(() => say('We could not check this link. You can still try the button.', 'error'));
+
+    action.addEventListener('click', async () => {
+      setButtonLoading(action, true, 'Please wait…');
+      try {
+        const res = await fetch(`/api/newsletter/${kind}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ token }) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'We could not complete that. Please try again.');
+        text.hidden = true;
+        stop(data.message, 'success');
+      } catch (err) {
+        say(err.message, 'error');
+      } finally {
+        setButtonLoading(action, false);
+      }
+    });
+  })();
+
+  // =========================================================
   // Boot
   // =========================================================
   loadCompany();

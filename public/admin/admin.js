@@ -433,6 +433,9 @@
     }
   });
 
+  // Shared with the separate email center script (admin/email.js)
+  window.AdminKit = { api, json, esc, toast, confirmDialog, timeAgo, fmtDate, openDialog, closeDialog };
+
   const VIEWS = {
     overview: { title: 'Overview', load: () => loadOverview() },
     projects: { title: 'Manage Projects', load: () => loadProjects() },
@@ -446,7 +449,8 @@
     messages: { title: 'Contact Messages', load: () => loadMessages() },
     accounts: { title: 'Administrator Accounts', load: () => loadAccounts(), admin: true },
     security: { title: 'Security & Activity', load: () => loadActivity(), admin: true },
-    system: { title: 'System', load: () => loadSystem(), admin: true }
+    system: { title: 'System', load: () => loadSystem(), admin: true },
+    email: { title: 'Email Marketing', load: () => window.EmailCenter && window.EmailCenter.load(), admin: true }
   };
 
   function route() {
