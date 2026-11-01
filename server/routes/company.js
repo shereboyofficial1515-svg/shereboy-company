@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../database');
-const { requireAuth } = require('../auth');
+const { requireAuth, requireRole } = require('../auth');
 const { logActivity } = require('../activityLog');
 const { sanitizeString, sanitizeUrl } = require('../middleware/security');
 const { writeWithOptionalColumns } = require('../dbCompat');
@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
 });
 
 // PUT /api/company — admin only
-router.put('/', requireAuth, async (req, res) => {
+router.put('/', requireAuth, requireRole('admin'), async (req, res) => {
   const b = req.body || {};
   const editable = [
     'company_name', 'description', 'mission', 'vision', 'address', 'cac_number',

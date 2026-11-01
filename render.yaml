@@ -38,6 +38,8 @@ services:
         value: gemini-2.5-flash
       - key: SESSION_SECRET
         generateValue: true
+      - key: GOOGLE_SITE_VERIFICATION
+        sync: false
       - key: ADMIN_USERNAME
         sync: false
       - key: ADMIN_PASSWORD_HASH

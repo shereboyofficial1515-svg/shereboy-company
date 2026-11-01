@@ -13,6 +13,8 @@
 //     BLOG_STALE_MAX_SECONDS (default 6 h) — after that the section shows an
 //     error state rather than possibly outdated (unpublished/deleted) articles.
 
+const serviceMonitor = require('./serviceMonitor');
+
 const DEFAULT_BLOG_URL = 'https://shereblog-news.onrender.com';
 
 function cfg() {
@@ -25,6 +27,7 @@ function cfg() {
     ttlMs: num(process.env.BLOG_CACHE_TTL_SECONDS, 300) * 1000,
     staleMaxMs: num(process.env.BLOG_STALE_MAX_SECONDS, 6 * 3600) * 1000,
     timeoutMs: num(process.env.BLOG_FETCH_TIMEOUT_MS, 10000),
+    firstWaitMs: num(process.env.BLOG_FIRST_WAIT_MS, 1500),
     pageSize: Math.min(num(process.env.BLOG_FEED_SIZE, 7), 24),
     refreshIntervalMs: num(process.env.BLOG_REFRESH_INTERVAL_SECONDS, 900) * 1000
   };
@@ -156,8 +159,9 @@ function refresh() {
 }
 
 /**
- * Returns the feed for visitors. Waits for the network only when there is no
- * usable cached copy; otherwise answers instantly and refreshes behind the scenes.
+ * Returns the feed for visitors. A visitor never waits for a sleeping blog: with
+ * no usable copy it gives the blog a moment to answer (enough when it is awake),
+ * then returns; the service monitor fetches the articles once the blog is ready.
  */
 async function getFeed() {
   const c = cfg();
@@ -165,7 +169,7 @@ async function getFeed() {
   const hasCache = state.articles !== null;
 
   if (!hasCache || age > c.staleMaxMs) {
-    await refresh();
+    await Promise.race([refresh(), new Promise(r => setTimeout(r, c.firstWaitMs))]);
   } else if (age > c.ttlMs) {
     refresh(); // background
   }
@@ -175,7 +179,7 @@ async function getFeed() {
   return {
     articles: usable ? state.articles : [],
     total: usable ? state.total : 0,
-    status: !usable ? 'unavailable' : (state.lastError ? 'stale' : 'live'),
+    status: !usable ? (state.inFlight || serviceMonitor.feedHint('blog') === 'waking' ? 'waking' : 'unavailable') : (state.lastError ? 'stale' : 'live'),
     fetchedAt: usable ? new Date(state.fetchedAt).toISOString() : null,
     blogUrl: c.publicUrl
   };
@@ -227,10 +231,12 @@ function snapshot() {
 let timer = null;
 function startPeriodicRefresh() {
   if (timer) return;
-  timer = setInterval(() => { refresh(); }, cfg().refreshIntervalMs);
+  // Only while people are visiting: requests here would otherwise keep a free
+  // Render service awake around the clock and use up its monthly hours.
+  timer = setInterval(() => { if (serviceMonitor.hasRecentVisitors()) refresh(); }, cfg().refreshIntervalMs);
   timer.unref();
-  // Warm the cache shortly after boot so the first visitor doesn't wait
-  setTimeout(() => refresh(), 3000).unref();
+  // Fetch as soon as the blog confirms it is ready
+  serviceMonitor.onReady('blog', () => { if (!state.fetchedAt || Date.now() - state.fetchedAt > cfg().ttlMs) refresh(); });
 }
 
 module.exports = { getFeed, cachedArticles, refresh, forget, checkConnection, snapshot, startPeriodicRefresh, normaliseArticle, _state: state };

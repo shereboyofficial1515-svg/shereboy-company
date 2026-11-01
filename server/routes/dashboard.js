@@ -6,6 +6,8 @@ const router = express.Router();
 const supabase = require('../database');
 const { requireAuth } = require('../auth');
 
+const SECURITY_ACTIONS = ['login', 'logout', 'login_failed', 'admin_created', 'admin_updated', 'admin_deleted'];
+
 const COMPANY_CONTENT_FIELDS = [
   ['description', 'Company introduction'],
   ['mission', 'Mission'],
@@ -39,7 +41,7 @@ router.get('/stats', requireAuth, async (req, res) => {
       supabase.from('services').select('published'),
       supabase.from('company_settings').select('*').eq('id', 1).single(),
       supabase.from('contact_messages').select('created_at').gte('created_at', sixMonthsAgo.toISOString()),
-      supabase.from('activity_log').select('*').order('created_at', { ascending: false }).limit(10)
+      supabase.from('activity_log').select('*').order('created_at', { ascending: false }).limit(req.session.user.role === 'admin' ? 10 : 40)
     ]);
 
     const projectRows = projects.data || [];
@@ -85,7 +87,9 @@ router.get('/stats', requireAuth, async (req, res) => {
       unreadMessages: unreadMessages.count || 0,
       enquiriesByMonth: months.map(({ label, count: n }) => ({ label, count: n })),
       contentStatus,
-      recentActivity: activity.data || []
+      recentActivity: req.session.user.role === 'admin'
+        ? activity.data || []
+        : (activity.data || []).filter(a => !SECURITY_ACTIONS.includes(a.action)).slice(0, 10)
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to load dashboard stats.' });

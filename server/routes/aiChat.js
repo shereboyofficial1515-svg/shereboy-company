@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../database');
 const crypto = require('crypto');
+const { clientIp } = require('../clientIp');
 
 const MAX_MESSAGE_LENGTH = 800;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
@@ -89,7 +90,7 @@ router.post('/', async (req, res) => {
 
     // Log a short, non-sensitive preview for abuse monitoring — no secrets, no full message.
     supabase.from('ai_chat_log').insert({
-      ip_hash: hashIp(req.ip),
+      ip_hash: hashIp(clientIp(req)),
       message_preview: message.slice(0, 100)
     }).then(() => {}, () => {});
 

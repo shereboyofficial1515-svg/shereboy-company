@@ -203,6 +203,36 @@ up to `AFFILIATE_STALE_MAX_SECONDS` (6 h) and then a friendly "temporarily unava
 Setup on the affiliate platform: `COMPANY_SITE_WEBHOOK_URL=https://shereboytechltd.site/api/affiliate-feed/webhook`
 and `COMPANY_SITE_WEBHOOK_SECRET` equal to this site's `AFFILIATE_WEBHOOK_SECRET`.
 
+## 14. Connected services and Render free hosting
+
+Pages never wait for SHEREBOY BLOG or SHEREBOY AFFILIATE CONCEPT. A page view starts a
+background check of both (`server/serviceMonitor.js`), and the Insights and product sections
+fill in once each service confirms that it can reach its database (`GET /api/health`). While a
+service wakes, visitors see the last saved list (up to 6 hours old) or a "starting up" message. If
+a service stays offline, the rest of the website keeps working. Status is under **Admin > System**.
+
+Free Render services sleep after a period without traffic, and the wake-up can take a minute or
+more. This code cannot remove that delay. Check Render's current plan terms for limits on free
+instance hours. Moving a service to a paid plan keeps it running, which is the only way to avoid
+the cold start.
+
+## 15. Google Search Console
+
+1. In [Search Console](https://search.google.com/search-console), add a property for
+   `https://shereboytechltd.site` and choose the **HTML tag** verification method.
+2. Copy only the `content` value from the tag Google shows you.
+3. On Render, set `GOOGLE_SITE_VERIFICATION` to that value and let the service redeploy.
+4. Click **Verify** in Search Console.
+5. Under **Sitemaps**, submit `sitemap.xml`.
+
+Submitting a sitemap asks Google to read it. It does not guarantee indexing or rankings.
+
+## 16. Tests
+
+`npm test` starts the server in production mode against a throw-away local stand-in for the
+database. It never contacts Supabase or the live site. Do not write-test against the values in
+`.env`: they point at the production database.
+
 ## Project structure
 
 ```

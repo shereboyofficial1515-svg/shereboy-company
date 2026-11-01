@@ -438,14 +438,15 @@
     projects: { title: 'Manage Projects', load: () => loadProjects() },
     previews: { title: 'Project Previews', load: () => loadPreviews() },
     services: { title: 'Services', load: () => loadServices() },
-    company: { title: 'About the Company', load: () => loadCompany() },
+    company: { title: 'About the Company', admin: true, load: () => loadCompany() },
     media: { title: 'Images & Documents', load: () => loadMedia() },
     blog: { title: 'SHEREBOY BLOG Connection', load: () => loadBlogConnection() },
     affiliate: { title: 'Affiliate Integration', load: () => loadAffiliateIntegration() },
     reviews: { title: 'Client Reviews', load: () => loadReviews() },
     messages: { title: 'Contact Messages', load: () => loadMessages() },
     accounts: { title: 'Administrator Accounts', load: () => loadAccounts(), admin: true },
-    security: { title: 'Security & Activity', load: () => loadActivity(), admin: true }
+    security: { title: 'Security & Activity', load: () => loadActivity(), admin: true },
+    system: { title: 'System', load: () => loadSystem(), admin: true }
   };
 
   function route() {
@@ -1464,6 +1465,86 @@
   // Security & activity log
   // =========================================================
   const logState = { page: 1, filter: '' };
+  // ---------- System (administrators only; the server enforces this too) ----------
+  const SERVICE_LABELS = { ready: ['Ready', 'ok'], waking: ['Starting up', 'warn'], degraded: ['Running, not ready', 'warn'], down: ['Not responding', 'bad'], unknown: ['Not checked yet', ''] };
+  const PREVIEW_LABELS = { embeddable: ['Can be previewed', 'ok'], blocked: ['Opens in a new tab', 'warn'], unknown: ['Could not check', 'warn'], disabled: ['Preview off', ''], none: ['No website address', ''] };
+  const sysRow = (tone, title, detail) => `<li><span class="sys-dot ${tone ? `sys-dot--${tone}` : ''}"></span><strong>${esc(title)}</strong>${detail ? `<small>${esc(detail)}</small>` : ''}</li>`;
+
+  function themeCard() {
+    const pref = window.shereboyTheme.preference();
+    return `<section class="sys-card"><h3>Theme</h3><p style="color:var(--muted)">Applies to this browser, on the dashboard and the public website. "System" follows the device setting.</p>
+      <div class="theme-choice" role="group" aria-label="Theme">${['system', 'light', 'dark'].map(t => `<button type="button" data-theme-choice="${t}" aria-pressed="${pref === t}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div></section>`;
+  }
+
+  async function loadSystem() {
+    const body = $('#systemBody');
+    body.innerHTML = '<div class="sys-card sys-card--wide"><span class="skeleton"></span><span class="skeleton"></span><span class="skeleton"></span></div>';
+    try {
+      const d = await api('/api/system/overview');
+      const services = Object.values(d.services).map(s => {
+        const [label, tone] = SERVICE_LABELS[s.status] || SERVICE_LABELS.unknown;
+        const facts = [label, s.lastCheckedAt ? `checked ${timeAgo(s.lastCheckedAt)}` : '', s.lastWakeMs ? `last ready in ${(s.lastWakeMs / 1000).toFixed(1)} s` : '', s.lastError || ''].filter(Boolean).join(' · ');
+        return sysRow(tone, s.name, facts);
+      }).join('');
+      const feeds = [['SHEREBOY BLOG feed', d.feeds.blog, 'articles'], ['Affiliate feed', d.feeds.affiliate, 'products']].map(([name, f, unit]) =>
+        sysRow(f.lastError ? 'warn' : (f.lastSuccessAt ? 'ok' : ''), name, `${f.cachedItems} ${unit} cached · ${f.lastSuccessAt ? `updated ${timeAgo(f.lastSuccessAt)}` : 'not fetched yet'}${f.lastError ? ` · ${f.lastError}` : ''}`)).join('');
+      body.innerHTML = `
+        ${themeCard()}
+        <section class="sys-card"><h3>Security overview</h3>
+          <p style="color:var(--muted)">${d.security.failedLogins24h} failed sign-in${d.security.failedLogins24h === 1 ? '' : 's'} in the last 24 hours. These checks cover configuration only; they don't prove that the site is secure. <a href="#/security">Open the audit log</a></p>
+          <ul class="sys-list">${d.security.checks.map(c => sysRow(c.ok ? 'ok' : 'warn', c.label, c.detail)).join('')}</ul></section>
+        <section class="sys-card"><h3>Connected services</h3>
+          <ul class="sys-list">${services}${feeds}</ul>
+          <div><button type="button" class="btn btn--ghost" id="sysCheckServices">Check again</button></div>
+          <p style="color:var(--muted)">On free Render hosting these services sleep when idle and can take a minute or more to start.</p></section>
+        <section class="sys-card"><h3>Project preview health</h3><ul class="sys-list" id="sysPreviews"><li><span class="sys-dot"></span><strong>Checking each project…</strong></li></ul>
+          <div><button type="button" class="btn btn--ghost" id="sysCheckPreviews">Check again</button></div></section>
+        <section class="sys-card sys-card--wide"><h3>Search engines</h3>
+          <dl class="sys-kv">
+            <dt>Sitemap</dt><dd><a href="${esc(d.seo.sitemapUrl)}" target="_blank" rel="noopener">${esc(d.seo.sitemapUrl)}</a> · ${d.seo.sitemapUrlCount} addresses${d.seo.sitemapLatestChange ? ` · latest change ${esc(d.seo.sitemapLatestChange)}` : ''}</dd>
+            <dt>Robots</dt><dd><a href="${esc(d.seo.robotsUrl)}" target="_blank" rel="noopener">${esc(d.seo.robotsUrl)}</a></dd>
+            <dt>Search Console</dt><dd>${d.seo.verificationConfigured ? 'Verification tag is configured.' : 'Not configured: set GOOGLE_SITE_VERIFICATION on the server to the value Google gives you.'}</dd>
+          </dl>
+          <ul class="sys-list">${d.seo.pages.map(p => sysRow('', `${p.path} — ${p.title}`, p.description)).join('')}</ul></section>
+        <section class="sys-card sys-card--wide"><h3>Recent system errors</h3>
+          <p style="color:var(--muted)">Kept in memory since the last restart.</p>
+          <ul class="sys-list">${d.errors.length ? d.errors.map(e => sysRow('bad', e.message, `${timeAgo(e.at)} · ${e.source}${e.path ? ` · ${e.method || ''} ${e.path}` : ''}`)).join('') : sysRow('ok', 'No errors recorded since the last restart.')}</ul></section>`;
+      loadSystemPreviews();
+    } catch (err) {
+      body.innerHTML = `<div class="sys-card sys-card--wide"><p>${esc(err.message)}</p><div><button type="button" class="btn btn--ghost" data-retry="system">Try again</button></div></div>`;
+    }
+  }
+
+  async function loadSystemPreviews(fresh) {
+    const list = document.getElementById('sysPreviews');
+    if (!list) return;
+    try {
+      const { previews } = await api(`/api/system/previews${fresh ? '?fresh=1' : ''}`);
+      list.innerHTML = previews.length ? previews.map(p => {
+        const [label, tone] = PREVIEW_LABELS[p.state] || PREVIEW_LABELS.unknown;
+        return sysRow(tone, p.title, [label, p.reason].filter(Boolean).join(' · '));
+      }).join('') : sysRow('', 'No published projects yet.');
+    } catch (err) { list.innerHTML = sysRow('bad', 'Could not check previews', err.message); }
+  }
+
+  $('#systemBody').addEventListener('click', async (e) => {
+    const choice = e.target.closest('[data-theme-choice]');
+    if (choice) {
+      window.shereboyTheme.set(choice.dataset.themeChoice);
+      $$('[data-theme-choice]').forEach(b => b.setAttribute('aria-pressed', String(b === choice)));
+    }
+    if (e.target.closest('#sysCheckPreviews')) {
+      $('#sysPreviews').innerHTML = '<li><span class="sys-dot"></span><strong>Checking each project…</strong></li>';
+      loadSystemPreviews(true);
+    }
+    if (e.target.closest('#sysCheckServices')) {
+      try {
+        await api('/api/system/services/check', { method: 'POST' });
+        toast('Checking the connected services. Refresh in a moment for the result.');
+      } catch (err) { toast(err.message, 'error'); }
+    }
+  });
+
   async function loadActivity() {
     const tbody = $('#activityTable tbody');
     tbody.innerHTML = skeletonRows(3, 6);

@@ -13,6 +13,8 @@
 //     AFFILIATE_STALE_MAX_SECONDS (default 6 h) — never disabled/deleted
 //     products indefinitely.
 
+const serviceMonitor = require('./serviceMonitor');
+
 const DEFAULT_URL = 'https://shereboyaffiliateconcept.shop';
 const PAGE_SIZE = 48;   // the platform's maximum page size
 const MAX_PAGES = 20;   // safety cap: up to 960 products
@@ -27,6 +29,7 @@ function cfg() {
     ttlMs: num(process.env.AFFILIATE_CACHE_TTL_SECONDS, 300) * 1000,
     staleMaxMs: num(process.env.AFFILIATE_STALE_MAX_SECONDS, 6 * 3600) * 1000,
     timeoutMs: num(process.env.AFFILIATE_FETCH_TIMEOUT_MS, 10000),
+    firstWaitMs: num(process.env.AFFILIATE_FIRST_WAIT_MS, 1500),
     refreshIntervalMs: num(process.env.AFFILIATE_REFRESH_INTERVAL_SECONDS, 900) * 1000
   };
 }
@@ -173,20 +176,30 @@ function refresh() {
   return state.inFlight;
 }
 
-/** The current catalogue: waits for the network only when there is no usable copy. */
+/**
+ * The current catalogue. A visitor never waits for a sleeping platform: with no
+ * usable copy it gets a moment to answer, then the service monitor fetches the
+ * products once the platform is ready.
+ */
 async function getCatalogue() {
   const c = cfg();
   const age = Date.now() - state.fetchedAt;
-  if (state.products === null || age > c.staleMaxMs) await refresh();
+  if (state.products === null || age > c.staleMaxMs) await Promise.race([refresh(), new Promise(r => setTimeout(r, c.firstWaitMs))]);
   else if (age > c.ttlMs) refresh(); // background
 
   const usable = state.products !== null && Date.now() - state.fetchedAt <= c.staleMaxMs;
   return {
     products: usable ? state.products : [],
-    status: !usable ? 'unavailable' : (state.lastError ? 'stale' : 'live'),
+    status: !usable ? (state.inFlight || serviceMonitor.feedHint('affiliate') === 'waking' ? 'waking' : 'unavailable') : (state.lastError ? 'stale' : 'live'),
     fetchedAt: usable ? new Date(state.fetchedAt).toISOString() : null,
     siteUrl: c.publicUrl
   };
+}
+
+/** Cached products only (no network) — for server-rendered pages. */
+function cachedProducts() {
+  const usable = state.products !== null && Date.now() - state.fetchedAt <= cfg().staleMaxMs;
+  return usable ? state.products : [];
 }
 
 function categoriesOf(products) {
@@ -242,9 +255,11 @@ function snapshot() {
 let timer = null;
 function startPeriodicRefresh() {
   if (timer) return;
-  timer = setInterval(() => { refresh(); }, cfg().refreshIntervalMs);
+  // Only while people are visiting, so an idle free Render service is allowed to sleep
+  timer = setInterval(() => { if (serviceMonitor.hasRecentVisitors()) refresh(); }, cfg().refreshIntervalMs);
   timer.unref();
-  setTimeout(() => refresh(), 4000).unref(); // warm the cache after boot
+  // Fetch as soon as the platform confirms it is ready
+  serviceMonitor.onReady('affiliate', () => { if (!state.fetchedAt || Date.now() - state.fetchedAt > cfg().ttlMs) refresh(); });
 }
 
-module.exports = { getCatalogue, categoriesOf, refresh, forget, checkConnection, snapshot, startPeriodicRefresh, normalise, _state: state };
+module.exports = { getCatalogue, cachedProducts, categoriesOf, refresh, forget, checkConnection, snapshot, startPeriodicRefresh, normalise, _state: state };
