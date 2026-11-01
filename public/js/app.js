@@ -8,11 +8,20 @@
 (function () {
   'use strict';
 
-  const $ = (sel, root = document) => root.querySelector(sel);
+  // Each page's HTML holds only that page's sections. Code for a section that isn't
+  // on this page gets a detached placeholder element, so it simply has no effect.
+  const placeholders = new Map();
+  const $ = (sel, root = document) => {
+    const found = root.querySelector(sel);
+    if (found || root !== document || !/^#[\w-]+$/.test(sel)) return found;
+    if (!placeholders.has(sel)) placeholders.set(sel, document.createElement('div'));
+    return placeholders.get(sel);
+  };
+  const onPage = (id) => !!document.getElementById(id);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const prefersReducedMotion = document.documentElement.classList.contains('reduced-motion');
-  // The same page shell serves the homepage and /affiliate-products (body[data-page="affiliate"])
-  const PAGE = document.body.dataset.page === 'affiliate' ? 'affiliate' : 'home';
+  const PAGE = document.body.dataset.page || 'home';
+  const START_PATH = location.pathname;
 
   $('#year').textContent = new Date().getFullYear();
 
@@ -214,7 +223,7 @@
   (function initScrollSpy() {
     const links = $$('.nav__links a[data-nav]');
     const sections = links.map(a => document.getElementById(a.dataset.nav)).filter(Boolean);
-    if (!('IntersectionObserver' in window) || !sections.length) return;
+    if (PAGE !== 'home' || !('IntersectionObserver' in window) || !sections.length) return;
     const setActive = (id) => links.forEach(a => {
       const on = a.dataset.nav === id;
       a.classList.toggle('is-active', on);
@@ -228,6 +237,10 @@
 
   // "Start a Project" buttons: scroll to the form and focus the first field
   function goToEnquiry(projectType) {
+    if (!onPage('contact')) {
+      location.href = `/contact${projectType ? `?type=${encodeURIComponent(projectType)}` : ''}#contact`;
+      return;
+    }
     const select = $('#efType');
     if (projectType && select && [...select.options].some(o => o.value === projectType || o.text === projectType)) {
       select.value = projectType;
@@ -481,7 +494,8 @@
 
   async function loadServices() {
     const list = $('#servicesList');
-    list.innerHTML = '<div class="skeleton skeleton--service"></div><div class="skeleton skeleton--service"></div><div class="skeleton skeleton--service"></div>';
+    // Server-rendered cards stay in place until fresh ones arrive
+    if (!$('.service', list)) list.innerHTML = '<div class="skeleton skeleton--service"></div><div class="skeleton skeleton--service"></div><div class="skeleton skeleton--service"></div>';
     try {
       const { services } = await apiGet('/api/services');
       const items = services || [];
@@ -491,16 +505,16 @@
         const meta = serviceMeta(s);
         const benefits = Array.isArray(s.benefits) ? s.benefits.filter(Boolean) : [];
         const wide = items.length % 2 === 1 && i === 0;
-        return `<article class="service reveal ${wide ? 'service--wide' : ''}">
+        return `<article class="service ${wide ? 'service--wide' : ''}">
           <span class="service__icon">${icon(meta.icon)}</span>
           <span class="service__num">${String(i + 1).padStart(2, '0')}</span>
           <h3>${escapeHtml(s.title)}</h3>
           <p class="service__desc">${escapeHtml(s.description || '')}</p>
           ${benefits.length ? `<ul class="service__benefits">${benefits.map(b => `<li>${icon('check')}<span>${escapeHtml(b)}</span></li>`).join('')}</ul>` : ''}
-          <a href="/#contact" class="link-btn service__cta" data-start-project data-project-type="${escapeHtml(meta.type)}">Discuss this service ${icon('arrow')}</a>
+          <a href="/contact" class="link-btn service__cta" data-start-project data-project-type="${escapeHtml(meta.type)}">Discuss this service ${icon('arrow')}</a>
         </article>`;
       }).join('');
-      $('#footerServices').innerHTML = items.slice(0, 5).map(s => `<a href="/#services">${escapeHtml(s.title)}</a>`).join('');
+      $('#footerServices').innerHTML = items.slice(0, 5).map(s => `<a href="/services">${escapeHtml(s.title)}</a>`).join('');
       observeReveals(list);
     } catch (err) {
       list.innerHTML = errorState('We could not load our services right now.', 'services');
@@ -524,15 +538,18 @@
   const STATUS_LABELS = { completed: 'Completed', in_progress: 'In progress', maintenance: 'Ongoing support' };
 
   let projects = [];
+  let projectList = [];
   let activeFilter = 'All';
 
   async function loadProjects() {
     const grid = $('#workGrid');
-    grid.innerHTML = '<div class="skeleton skeleton--project skeleton--wide"></div><div class="skeleton skeleton--project"></div><div class="skeleton skeleton--project"></div>';
+    if (!$('.project', grid)) grid.innerHTML = '<div class="skeleton skeleton--project skeleton--wide"></div><div class="skeleton skeleton--project"></div><div class="skeleton skeleton--project"></div>';
     try {
       const data = await apiGet('/api/projects?limit=50');
       projects = data.projects || [];
       animateCount($('#statProjects'), data.total ?? projects.length);
+      // A project's own page lists the other projects
+      projectList = PAGE === 'project' ? projects.filter(p => START_PATH !== `/projects/${p.id}`) : projects;
       renderFilters();
       renderProjects();
       routeFromLocation();
@@ -544,12 +561,12 @@
   function renderFilters() {
     const wrap = $('#workFilters');
     const counts = {};
-    projects.forEach(p => { const g = categoryGroup(p.category); counts[g] = (counts[g] || 0) + 1; });
+    projectList.forEach(p => { const g = categoryGroup(p.category); counts[g] = (counts[g] || 0) + 1; });
     const groups = CATEGORY_GROUPS.filter(g => counts[g]);
     // Filtering only helps when there is more than one category with projects
     if (groups.length < 2) { wrap.hidden = true; return; }
     wrap.hidden = false;
-    wrap.innerHTML = [['All', projects.length], ...groups.map(g => [g, counts[g]])].map(([g, n]) =>
+    wrap.innerHTML = [['All', projectList.length], ...groups.map(g => [g, counts[g]])].map(([g, n]) =>
       `<button type="button" class="filter ${g === activeFilter ? 'is-active' : ''}" role="tab" aria-selected="${g === activeFilter}" data-filter="${escapeHtml(g)}">${escapeHtml(g)} <span>${n}</span></button>`
     ).join('');
   }
@@ -576,7 +593,7 @@
       </div>
       <div class="project__body">
         <p class="project__cat">${escapeHtml(p.category || categoryGroup(p.category))}</p>
-        <h3 class="project__title"><button type="button" data-open-project="${escapeHtml(p.id)}">${escapeHtml(p.title)}</button></h3>
+        <h3 class="project__title"><a href="/projects/${escapeHtml(p.id)}" data-open-project="${escapeHtml(p.id)}">${escapeHtml(p.title)}</a></h3>
         <p class="project__desc">${escapeHtml((p.description || '').split('\n').filter(Boolean)[0] || '')}</p>
         ${tech.length ? `<div class="chips" aria-label="Technologies used">${tech.map(t => `<span class="chip">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
         <div class="project__actions">
@@ -589,7 +606,7 @@
 
   function renderProjects() {
     const grid = $('#workGrid');
-    const list = activeFilter === 'All' ? projects : projects.filter(p => categoryGroup(p.category) === activeFilter);
+    const list = activeFilter === 'All' ? projectList : projectList.filter(p => categoryGroup(p.category) === activeFilter);
     if (!list.length) {
       grid.innerHTML = '<p class="empty-state">New projects will be showcased here soon.</p>';
       return;
@@ -602,7 +619,13 @@
 
   document.addEventListener('click', (e) => {
     const openBtn = e.target.closest('[data-open-project]');
-    if (openBtn) { openProject(openBtn.dataset.openProject, { opener: openBtn }); return; }
+    if (openBtn) {
+      // Real link (crawlable, opens in a new tab with a modifier key); plain clicks open the details in place
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+      e.preventDefault();
+      openProject(openBtn.dataset.openProject, { opener: openBtn });
+      return;
+    }
     const prevBtn = e.target.closest('[data-preview-project]');
     if (prevBtn) {
       const p = projects.find(x => x.id === prevBtn.dataset.previewProject);
@@ -634,14 +657,14 @@
           ${canPreview(p) ? `<button type="button" class="btn btn--primary" data-preview-project="${escapeHtml(p.id)}">${icon('eye')}Live Preview</button>` : ''}
           ${live ? `<a class="btn btn--ghost" href="${escapeHtml(live)}" target="_blank" rel="noopener">Visit Website ${icon('external')}</a>` : ''}
           ${repo ? `<a class="btn btn--ghost" href="${escapeHtml(repo)}" target="_blank" rel="noopener">${icon('github')}View Source</a>` : ''}
-          <a class="btn btn--ghost" href="/#contact" data-start-project>Start a similar project</a>
+          <a class="btn btn--ghost" href="/contact" data-start-project>Start a similar project</a>
         </div>
       </div>`;
     hydrateMedia(projectModal);
     $('#projectModalBody').scrollTop = 0;
     openDialog(projectModal, {
       opener,
-      onClose: () => { if (/^\/projects\//.test(location.pathname)) history.pushState({}, '', '/#work'); }
+      onClose: () => { if (location.pathname !== START_PATH) history.pushState({}, '', START_PATH); }
     });
     $('.modal__panel', projectModal).scrollTop = 0;
     if (pushHistory && location.pathname !== `/projects/${id}`) history.pushState({ project: id }, '', `/projects/${id}`);
@@ -658,7 +681,27 @@
   const previewState = $('#previewState');
   const previewDevice = $('#previewDevice');
   const preview = { project: null, token: 0, timers: [] };
-  const DEVICE_KEY = 'shereboy_preview_device';
+  // Real viewport widths: the site inside the frame lays out exactly as on that
+  // device, and the frame is then scaled down to fit the space available here.
+  const DEVICE_WIDTHS = { desktop: 1280, tablet: 820, mobile: 390 };
+  const previewStage = $('#previewStage');
+
+  function fitPreview() {
+    if (previewModal.hidden) return;
+    const device = previewDevice.dataset.device;
+    const pad = document.fullscreenElement ? 0 : 14;
+    const availW = previewStage.clientWidth - pad * 2;
+    const availH = previewStage.clientHeight - pad * 2;
+    if (availW <= 0 || availH <= 0) return;
+    // Desktop fills the space when it is wider than the logical width
+    const width = device === 'desktop' ? Math.max(DEVICE_WIDTHS.desktop, availW) : DEVICE_WIDTHS[device];
+    const scale = Math.min(1, availW / width);
+    previewDevice.style.width = `${width}px`;
+    previewDevice.style.height = `${availH / scale}px`;
+    previewDevice.style.transform = `translateX(-50%) scale(${scale})`;
+  }
+  if ('ResizeObserver' in window) new ResizeObserver(fitPreview).observe(previewStage);
+  else window.addEventListener('resize', fitPreview);
 
   function clearPreviewTimers() { preview.timers.forEach(clearTimeout); preview.timers = []; }
 
@@ -670,7 +713,7 @@
       b.classList.toggle('is-active', on);
       b.setAttribute('aria-pressed', String(on));
     });
-    try { localStorage.setItem(DEVICE_KEY, device); } catch { /* storage unavailable */ }
+    fitPreview();
   }
   $$('.preview__devices [data-device]').forEach(b => b.addEventListener('click', () => setDevice(b.dataset.device)));
 
@@ -692,7 +735,7 @@
       <h3>${escapeHtml(title)}</h3>
       <p>${escapeHtml(message)}</p>
       <div class="preview__state-actions">
-        <a class="btn btn--primary" href="${escapeHtml(live)}" target="_blank" rel="noopener">Open Website in New Tab ${icon('external')}</a>
+        <a class="btn btn--primary" href="${escapeHtml(live)}" target="_blank" rel="noopener">Open Website ${icon('external')}</a>
         ${wait ? '<button type="button" class="btn btn--ghost" data-preview-wait>Keep waiting</button>' : ''}
         ${retry ? `<button type="button" class="btn btn--ghost" data-preview-retry>${icon('refresh')}Try again</button>` : ''}
       </div>`);
@@ -728,7 +771,7 @@
       title: disabled ? 'Live preview is not available for this project' : 'This website can\'t be displayed inside another site',
       message: disabled
         ? 'You can still visit the website directly.'
-        : `For security, ${hostOf(p.live_url)} only allows itself to be shown on its own domain. Open it in a new tab to explore the live site.`,
+        : `${hostOf(p.live_url)} doesn't allow other websites to display it, and that choice is respected here. Open the website to explore it directly.`,
       retry: false
     });
   }
@@ -787,9 +830,6 @@
     $('#previewTitle').textContent = project.title;
     $('#previewUrl').textContent = hostOf(live);
     $('#previewNewTab').href = live;
-    let device = 'desktop';
-    try { device = localStorage.getItem(DEVICE_KEY) || (innerWidth < 700 ? 'mobile' : 'desktop'); } catch { /* ignore */ }
-    setDevice(device);
     // The preview sits above the details modal if that is open
     openDialog(previewModal, {
       opener,
@@ -801,6 +841,7 @@
         if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
       }
     });
+    setDevice(innerWidth < 700 ? 'mobile' : (innerWidth < 1100 ? 'tablet' : 'desktop'));
     loadPreview();
   }
   $('#previewClose').addEventListener('click', () => closeDialog(previewModal));
@@ -814,6 +855,7 @@
     const on = !!document.fullscreenElement;
     $('#previewFullscreen').innerHTML = icon(on ? 'shrink' : 'expand');
     $('#previewFullscreen').setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+    fitPreview();
   });
 
   // =========================================================
@@ -853,6 +895,25 @@
   // summaries (fetched and cached by our server) and links to the original.
   // =========================================================
   const blogFeedEl = $('#blogFeed');
+
+  // Our server wakes SHEREBOY BLOG and SHEREBOY AFFILIATE CONCEPT in the background.
+  // While it does, a feed answers "waking" immediately and the page asks again on
+  // this schedule, then stops: there is no endless polling.
+  const FEED_RETRY_MS = [3000, 5000, 8000, 12000, 18000, 25000, 30000];
+  const FEED_SAVE_KEY = (name) => `shereboy_feed_${name}`;
+  const FEED_SAVE_MAX_MS = 6 * 3600 * 1000;
+  function saveFeed(name, data) {
+    try { localStorage.setItem(FEED_SAVE_KEY(name), JSON.stringify({ at: Date.now(), data })); } catch { /* optional */ }
+  }
+  function savedFeed(name) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(FEED_SAVE_KEY(name)) || 'null');
+      return saved && Date.now() - saved.at < FEED_SAVE_MAX_MS ? saved.data : null;
+    } catch { return null; }
+  }
+  function wakingHtml(title, message) {
+    return `<div class="feed-waking" role="status"><div class="preview__loader" aria-hidden="true"></div><h3>${escapeHtml(title)}</h3><p>${escapeHtml(message)}</p></div>`;
+  }
 
   function articleMeta(a) {
     return [
@@ -898,9 +959,22 @@
     </div>`;
   }
 
-  async function loadBlogFeed() {
+  function renderArticles(articles, note) {
+    const lead = articles.find(a => a.isFeatured) || articles[0];
+    const rest = articles.filter(a => a !== lead).slice(0, 6);
+    blogFeedEl.innerHTML = articleCard(lead, true) + (rest.length ? `<div class="blog-grid">${rest.map(a => articleCard(a, false)).join('')}</div>` : '');
+    $('#blogFeedNote').textContent = note;
+    hydrateMedia(blogFeedEl);
+    observeReveals(blogFeedEl);
+  }
+
+  let blogRetryTimer = null;
+  let blogShowingSaved = false;
+  async function loadBlogFeed(attempt = 0) {
+    clearTimeout(blogRetryTimer);
     blogFeedEl.setAttribute('aria-busy', 'true');
-    blogFeedEl.innerHTML = '<div class="skeleton skeleton--featured"></div><div class="skeleton skeleton--post"></div><div class="skeleton skeleton--post"></div><div class="skeleton skeleton--post"></div>';
+    if (attempt === 0) blogShowingSaved = false;
+    if (attempt === 0 && !$('.blog-card, .blog-featured', blogFeedEl)) blogFeedEl.innerHTML = '<div class="skeleton skeleton--featured"></div><div class="skeleton skeleton--post"></div><div class="skeleton skeleton--post"></div><div class="skeleton skeleton--post"></div>';
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 30000);
     try {
@@ -910,7 +984,22 @@
       const home = safeHref(feed.blogUrl);
       if (home) $$('[data-blog-home]').forEach(a => { a.href = `${home}/`; });
 
+      if (feed.status === 'waking') {
+        if (attempt < FEED_RETRY_MS.length) {
+          const saved = savedFeed('blog');
+          if (saved && saved.length && !blogShowingSaved) {
+            blogShowingSaved = true;
+            renderArticles(saved, 'Showing recently saved articles while SHEREBOY BLOG starts up.');
+          } else if (!blogShowingSaved) {
+            blogFeedEl.innerHTML = wakingHtml('SHEREBOY BLOG is starting up', 'The latest articles will appear here shortly. This can take up to a minute or so.');
+          }
+          blogRetryTimer = setTimeout(() => loadBlogFeed(attempt + 1), FEED_RETRY_MS[attempt]);
+          return;
+        }
+        feed.status = 'unavailable';
+      }
       if (feed.status === 'unavailable') {
+        if (blogShowingSaved) return;
         blogState({ title: 'Articles are temporarily unavailable', message: 'We couldn\'t reach SHEREBOY BLOG just now. You can try again, or read the latest articles directly on the blog.', retry: true });
         return;
       }
@@ -919,14 +1008,10 @@
         blogState({ title: 'Fresh articles coming soon', message: 'New insights are on the way. Visit SHEREBOY BLOG for more updates.' });
         return;
       }
-      const lead = articles.find(a => a.isFeatured) || articles[0];
-      const rest = articles.filter(a => a !== lead).slice(0, 6);
-      blogFeedEl.innerHTML = articleCard(lead, true) + (rest.length ? `<div class="blog-grid">${rest.map(a => articleCard(a, false)).join('')}</div>` : '');
-      $('#blogFeedNote').textContent = feed.status === 'stale'
+      saveFeed('blog', articles);
+      renderArticles(articles, feed.status === 'stale'
         ? 'Showing recently saved articles while SHEREBOY BLOG updates. Articles are hosted on SHEREBOY BLOG.'
-        : 'Articles are written, published and hosted on SHEREBOY BLOG.';
-      hydrateMedia(blogFeedEl);
-      observeReveals(blogFeedEl);
+        : 'Articles are written, published and hosted on SHEREBOY BLOG.');
     } catch {
       blogState({ title: 'Articles are temporarily unavailable', message: 'We couldn\'t load the latest articles right now. Please try again, or visit SHEREBOY BLOG directly.', retry: true });
     } finally {
@@ -939,9 +1024,9 @@
   // Load when the section approaches the viewport, or a few seconds after the page
   // settles (safety net for jumps the observer can miss). Answered from our server's
   // in-memory cache, so this never adds load to SHEREBOY BLOG itself.
-  if (PAGE === 'home') {
+  if (onPage('insights')) {
     if (location.hash === '#insights') loadBlogFeed();
-    else whenNear($('#insights'), loadBlogFeed);
+    else whenNear($('#insights'), () => loadBlogFeed());
   }
 
   // =========================================================
@@ -949,11 +1034,10 @@
   // =========================================================
   function routeFromLocation() {
     const projectMatch = location.pathname.match(/^\/projects\/([\w-]+)\/?$/);
-    if (projectMatch) {
-      if (projects.length && !openProject(projectMatch[1], { pushHistory: false })) {
-        showToast('That project could not be found.', 'error');
-        history.replaceState({}, '', '/#work');
-      }
+    // A project's own address, loaded directly, is a full page; only later
+    // in-page navigation opens the details view
+    if (projectMatch && location.pathname !== START_PATH) {
+      openProject(projectMatch[1], { pushHistory: false });
     } else if (!projectModal.hidden) {
       closeDialog(projectModal, { restoreFocus: false });
     }
@@ -988,6 +1072,12 @@
     input.addEventListener('blur', () => { if (input.value) setFieldError(input, VALIDATORS[id](input.value)); });
     input.addEventListener('input', () => { if (input.closest('.field').classList.contains('has-error')) setFieldError(input, VALIDATORS[id](input.value)); });
   });
+  const askedType = new URLSearchParams(location.search).get('type');
+  if (askedType && onPage('efType')) {
+    const select = $('#efType');
+    if ([...select.options].some(o => o.value === askedType || o.text === askedType)) select.value = askedType;
+    if (location.hash === '#contact') setTimeout(() => $('#efName').focus({ preventScroll: true }), 300);
+  }
   message.addEventListener('input', () => { $('#efCount').textContent = `${message.value.length} / 3000`; });
 
   let submitting = false;
@@ -1191,12 +1281,17 @@
   }
 
   // ---------- Homepage: Featured Products (hidden unless real products exist) ----------
-  async function loadHomeProducts() {
+  async function loadHomeProducts(attempt = 0) {
     const section = $('#featured-products');
     const grid = $('#homeProducts');
     try {
       const res = await fetch('/api/affiliate-feed/featured?limit=4', { headers: { Accept: 'application/json' } });
       const feed = await res.json();
+      // Hidden until there is something real to show; ask again while the platform wakes
+      if (res.ok && feed.status === 'waking' && attempt < FEED_RETRY_MS.length) {
+        setTimeout(() => loadHomeProducts(attempt + 1), FEED_RETRY_MS[attempt]);
+        return;
+      }
       if (!res.ok || !Array.isArray(feed.products) || !feed.products.length) return; // stay hidden — never an empty or broken block
       grid.innerHTML = feed.products.map(productCard).join('');
       section.hidden = false;
@@ -1206,7 +1301,7 @@
   }
 
   // ---------- /affiliate-products: showcase page ----------
-  const aff = { q: '', category: '', page: 1, pageSize: 12, loading: false, ctrl: null };
+  const aff = { q: '', category: '', page: 1, pageSize: 12, loading: false, ctrl: null, firstLoad: !location.search };
 
   function affState({ title, message, retry, clear }) {
     const store = $('[data-aff-home]').getAttribute('href');
@@ -1239,7 +1334,9 @@
     ).join('');
   }
 
-  async function loadAffProducts({ append = false } = {}) {
+  let affRetryTimer = null;
+  async function loadAffProducts({ append = false, attempt = 0 } = {}) {
+    clearTimeout(affRetryTimer);
     const grid = $('#affGrid');
     const more = $('#affLoadMore');
     if (aff.ctrl) aff.ctrl.abort();
@@ -1248,7 +1345,12 @@
     aff.loading = true;
     grid.setAttribute('aria-busy', 'true');
     if (append) setButtonLoading(more, true, 'Loading…');
-    else { grid.innerHTML = productSkeletons(6); more.hidden = true; }
+    else if (attempt === 0) {
+      // Server-rendered products stay in place while the first request runs
+      if (!(aff.firstLoad && $('.product', grid))) grid.innerHTML = productSkeletons(6);
+      aff.firstLoad = false;
+      more.hidden = true;
+    }
 
     const params = new URLSearchParams({ page: aff.page, pageSize: aff.pageSize });
     if (aff.q) params.set('q', aff.q);
@@ -1260,6 +1362,25 @@
       if (!res.ok || !Array.isArray(feed.products)) throw new Error(feed.error || 'bad response');
       setAffiliateHome(feed.siteUrl);
 
+      if (feed.status === 'waking') {
+        if (attempt < FEED_RETRY_MS.length) {
+          const saved = !aff.q && !aff.category ? savedFeed('products') : null;
+          if (saved && saved.length) {
+            if (attempt === 0) {
+              grid.innerHTML = saved.map(productCard).join('');
+              hydrateMedia(grid);
+              observeReveals(grid);
+              $('#affCount').textContent = 'Showing a recently saved list while SHEREBOY AFFILIATE CONCEPT starts up.';
+            }
+          } else {
+            $('#affCount').textContent = '';
+            grid.innerHTML = wakingHtml('SHEREBOY AFFILIATE CONCEPT is starting up', 'Products will appear here shortly. This can take up to a minute or so.');
+          }
+          affRetryTimer = setTimeout(() => loadAffProducts({ attempt: attempt + 1 }), FEED_RETRY_MS[attempt]);
+          return;
+        }
+        feed.status = 'unavailable';
+      }
       if (feed.status === 'unavailable') {
         $('#affCount').textContent = '';
         $('#affCategories').hidden = true;
@@ -1274,6 +1395,7 @@
         else affState({ title: 'New products are on the way', message: 'New products are on the way. Visit SHEREBOY AFFILIATE CONCEPT for the latest offers.' });
         return;
       }
+      if (!append && !aff.q && !aff.category) saveFeed('products', feed.products);
       const html = feed.products.map(productCard).join('');
       if (append) {
         grid.insertAdjacentHTML('beforeend', html);
@@ -1298,10 +1420,14 @@
     }
   }
 
-  async function loadAffFeatured() {
+  async function loadAffFeatured(attempt = 0) {
     try {
       const res = await fetch('/api/affiliate-feed/featured?limit=8', { headers: { Accept: 'application/json' } });
       const feed = await res.json();
+      if (res.ok && feed.status === 'waking' && attempt < FEED_RETRY_MS.length) {
+        setTimeout(() => loadAffFeatured(attempt + 1), FEED_RETRY_MS[attempt]);
+        return;
+      }
       const featured = (feed.products || []).filter(p => p.isFeatured);
       const wrap = $('#affFeaturedWrap');
       if (!res.ok || !featured.length) { wrap.hidden = true; return; }
@@ -1356,13 +1482,10 @@
   // Boot
   // =========================================================
   loadCompany();
-  if (PAGE === 'affiliate') {
-    initAffiliatePage();
-  } else {
-    loadServices();
-    loadProjects();
-    loadReviews();
-    whenNear($('#featured-products'), loadHomeProducts);
-  }
+  if (PAGE === 'affiliate') initAffiliatePage();
+  if (onPage('servicesList')) loadServices();
+  if (onPage('workGrid')) loadProjects();
+  if (onPage('reviews')) loadReviews();
+  if (onPage('featured-products')) whenNear($('#featured-products'), () => loadHomeProducts());
   hydrateMedia();
 })();

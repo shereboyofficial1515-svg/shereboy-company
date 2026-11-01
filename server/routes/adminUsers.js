@@ -6,7 +6,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const supabase = require('../database');
-const { requireAuth, requireRole, ROLES } = require('../auth');
+const { requireAuth, requireRole, ROLES, forgetAccount, passwordFingerprint } = require('../auth');
 const { logActivity } = require('../activityLog');
 
 router.use(requireAuth, requireRole('admin'));
@@ -67,6 +67,9 @@ router.put('/users/:id', async (req, res) => {
   }
   const { data, error } = await supabase.from('users').update(payload).eq('id', req.params.id).select('id, username, role').single();
   if (error || !data) return res.status(404).json({ error: 'Account not found.' });
+  forgetAccount(req.params.id);
+  // Resetting your own password keeps this session; every other session for the account ends
+  if (payload.password_hash && req.params.id === req.session.user.id) req.session.user.pw = passwordFingerprint(payload.password_hash);
   logActivity(req.session.user, 'admin_updated', `Updated account "${data.username}"${payload.role ? ` (role: ${payload.role})` : ''}${password ? ' — password reset' : ''}`);
   res.json({ user: data });
 });
@@ -79,6 +82,7 @@ router.delete('/users/:id', async (req, res) => {
   if (!data) return res.status(404).json({ error: 'Account not found.' });
   const { error } = await supabase.from('users').delete().eq('id', req.params.id);
   if (error) return res.status(500).json({ error: 'Failed to delete the account.' });
+  forgetAccount(req.params.id);
   logActivity(req.session.user, 'admin_deleted', `Deleted account "${data.username}"`);
   res.json({ success: true });
 });

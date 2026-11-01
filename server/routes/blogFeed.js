@@ -3,14 +3,16 @@
 // deletes articles — it only displays published summaries from SHEREBOY BLOG.
 const express = require('express');
 const router = express.Router();
-const rateLimit = require('express-rate-limit');
+const { rateLimit } = require('../middleware/security');
 const blogFeed = require('../blogFeed');
+const serviceMonitor = require('../serviceMonitor');
 const { requireAuth } = require('../auth');
 const { logActivity } = require('../activityLog');
 const { createVerifier } = require('../webhookAuth');
 
 // GET /api/blog-feed — public
 router.get('/', async (req, res) => {
+  serviceMonitor.touch();
   const feed = await blogFeed.getFeed();
   // Revalidate on every load (cheap 304 via ETag): the server answers from memory, and an
   // unpublished article must not linger in visitors' browser caches

@@ -4,13 +4,17 @@
 // publishes, and links each product to its own destination there.
 const express = require('express');
 const router = express.Router();
-const rateLimit = require('express-rate-limit');
+const { rateLimit } = require('../middleware/security');
 const affiliateFeed = require('../affiliateFeed');
+const serviceMonitor = require('../serviceMonitor');
 const { requireAuth } = require('../auth');
 const { logActivity } = require('../activityLog');
 const { createVerifier } = require('../webhookAuth');
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+// Reads from visitors (not the signed webhook or admin routes) count as activity
+router.get(['/products', '/featured'], (req, res, next) => { serviceMonitor.touch(); next(); });
 
 function intParam(value, name, min, max, fallback) {
   if (value === undefined || value === '') return fallback;

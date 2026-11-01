@@ -1,5 +1,9 @@
 // server/middleware/security.js
-const rateLimit = require('express-rate-limit');
+const expressRateLimit = require('express-rate-limit');
+const { clientIp } = require('../clientIp');
+
+// Every limiter counts per real visitor, not per shared Cloudflare edge address
+const rateLimit = (options) => expressRateLimit({ keyGenerator: clientIp, ...options });
 
 // General API rate limiter
 const apiLimiter = rateLimit({
@@ -68,6 +72,6 @@ function sanitizeUrl(value, maxLen = 1000) {
 }
 
 module.exports = {
-  apiLimiter, loginLimiter, aiChatLimiter, uploadLimiter, previewCheckLimiter,
+  rateLimit, apiLimiter, loginLimiter, aiChatLimiter, uploadLimiter, previewCheckLimiter,
   sanitizeString, sanitizeUrl
 };
