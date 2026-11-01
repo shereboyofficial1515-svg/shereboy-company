@@ -441,6 +441,7 @@
     company: { title: 'About the Company', load: () => loadCompany() },
     media: { title: 'Images & Documents', load: () => loadMedia() },
     blog: { title: 'SHEREBOY BLOG Connection', load: () => loadBlogConnection() },
+    affiliate: { title: 'Affiliate Integration', load: () => loadAffiliateIntegration() },
     reviews: { title: 'Client Reviews', load: () => loadReviews() },
     messages: { title: 'Contact Messages', load: () => loadMessages() },
     accounts: { title: 'Administrator Accounts', load: () => loadAccounts(), admin: true },
@@ -648,7 +649,7 @@
     project_deleted: 'Project deleted', projects_reordered: 'Projects reordered', service_created: 'Service added', service_edited: 'Service edited',
     service_deleted: 'Service deleted', blog_created: 'Article added', blog_edited: 'Article edited', blog_deleted: 'Article deleted',
     review_created: 'Review added', review_edited: 'Review edited', review_deleted: 'Review deleted', company_updated: 'Company details updated',
-    contact_deleted: 'Message deleted', blog_feed_refreshed: 'SHEREBOY BLOG refreshed', contact_read: 'Message read', contact_unread: 'Message marked unread', file_uploaded: 'File uploaded',
+    contact_deleted: 'Message deleted', blog_feed_refreshed: 'SHEREBOY BLOG refreshed', affiliate_feed_refreshed: 'Affiliate products refreshed', contact_read: 'Message read', contact_unread: 'Message marked unread', file_uploaded: 'File uploaded',
     media_edited: 'File description edited', media_replaced: 'File replaced', media_deleted: 'File deleted', admin_created: 'Account created',
     admin_updated: 'Account updated', admin_deleted: 'Account deleted'
   };
@@ -1216,6 +1217,80 @@
     } finally {
       setLoading(btn, false);
       loadBlogConnection();
+    }
+  });
+
+  // =========================================================
+  // Affiliate integration (read-only — products are managed on SHEREBOY AFFILIATE CONCEPT)
+  // =========================================================
+  function fmtNaira(amount, currency) {
+    if (typeof amount !== 'number') return '—';
+    try { return new Intl.NumberFormat('en-NG', { style: 'currency', currency: currency || 'NGN', maximumFractionDigits: 0 }).format(amount); } catch { return String(amount); }
+  }
+  function renderAffiliateConnection(s) {
+    const conn = s.connection || {};
+    const live = conn.ok === true;
+    const stat = (label, value, sub = '') => `<div class="blog-conn__stat"><span>${label}</span><strong>${value}</strong>${sub ? `<small>${sub}</small>` : ''}</div>`;
+    const siteUrl = safeUrl(s.siteUrl);
+    if (siteUrl) $('#affOpenBtn').href = `${siteUrl}/`;
+    const issues = [
+      s.productsWithoutImage ? `${s.productsWithoutImage} product${s.productsWithoutImage === 1 ? ' has' : 's have'} no working image` : '',
+      s.productsWithoutDestination ? `${s.productsWithoutDestination} product${s.productsWithoutDestination === 1 ? ' has' : 's have'} no valid link` : ''
+    ].filter(Boolean);
+    $('#affConnection').innerHTML = `
+      <div class="blog-conn__status ${live ? 'is-ok' : 'is-down'}">
+        <span class="blog-conn__dot" aria-hidden="true"></span>
+        <div>
+          <strong>${live ? 'Connected to SHEREBOY AFFILIATE CONCEPT' : 'SHEREBOY AFFILIATE CONCEPT is not responding'}</strong>
+          <p>${live
+    ? `The public products API answered in ${conn.responseMs} ms.`
+    : `${esc(conn.error || 'The connection check failed.')} The website keeps working${s.cachedProducts ? ' and shows the last saved products' : ''} until the platform is back.`}</p>
+        </div>
+      </div>
+      <div class="blog-conn__grid">
+        ${stat('Affiliate platform', 'SHEREBOY AFFILIATE CONCEPT', siteUrl ? `<a href="${esc(siteUrl)}/" target="_blank" rel="noopener">${esc(siteUrl.replace(/^https?:\/\//, ''))}</a>` : '')}
+        ${stat('API availability', live ? '<span class="pill pill--green">Available</span>' : '<span class="pill pill--red">Unavailable</span>', `<code>${esc((s.apiUrl || '').replace(/^https?:\/\//, ''))}</code>`)}
+        ${stat('Available products', live && conn.availableProducts !== null ? conn.availableProducts : s.cachedProducts, live ? `Live count · ${conn.totalProducts ?? '—'} in total on the platform` : 'From the last successful sync')}
+        ${stat('Featured products', live && conn.featuredProducts !== null ? conn.featuredProducts : s.cachedFeatured, 'Marked as featured on the platform')}
+        ${stat('Last successful sync', s.lastSuccessAt ? timeAgo(s.lastSuccessAt) : 'Never', fmtDateTime(s.lastSuccessAt))}
+        ${stat('Last sync error', s.lastError ? '<span class="pill pill--red">Error</span>' : '<span class="pill pill--green">None</span>', s.lastError ? `${esc(s.lastError)} · ${fmtDateTime(s.lastErrorAt)}` : '')}
+        ${stat('Automatic updates', s.webhookConfigured ? 'Instant + every few minutes' : `Every ${Math.round(s.cacheTtlSeconds / 60)} minutes`, s.webhookConfigured ? 'Webhook from the affiliate platform is configured' : 'Set AFFILIATE_WEBHOOK_SECRET to enable instant updates')}
+        ${stat('Data quality', !s.lastSuccessAt ? '<span class="pill pill--grey">Not checked yet</span>' : (issues.length ? '<span class="pill pill--amber">Needs attention</span>' : '<span class="pill pill--green">Good</span>'), !s.lastSuccessAt ? 'Available after the first successful sync' : (issues.length ? `${issues.join(' · ')} — fix on the affiliate website` : 'Every product has an image and a link'))}
+      </div>`;
+  }
+  function renderAffiliateProducts(feed) {
+    const list = (feed && feed.products) || [];
+    $('#affProducts').innerHTML = list.length
+      ? `<ul class="blog-list">${list.map(p => `<li>
+          ${thumb(p.image && p.image.url)}
+          <div>${p.url ? `<a href="${esc(safeUrl(p.url))}" target="_blank" rel="noopener"><strong>${esc(p.name)}</strong></a>` : `<strong>${esc(p.name)}</strong> <span class="pill pill--red">No valid link</span>`}
+          <small>${[p.category && p.category.name, fmtNaira(p.price && p.price.current, p.price && p.price.currency)].filter(Boolean).map(esc).join(' · ')}${p.isFeatured ? ' · <span class="pill pill--blue">Featured</span>' : ''}${p.isDeal ? ' · <span class="pill pill--amber">Deal</span>' : ''}${p.image ? '' : ' · <span class="pill pill--grey">No image</span>'}</small></div>
+        </li>`).join('')}</ul>`
+      : `<div class="empty">${icon('cart')}<p>${feed && feed.status === 'unavailable' ? 'No products can be shown until SHEREBOY AFFILIATE CONCEPT is reachable.' : 'No available products yet. Add products on SHEREBOY AFFILIATE CONCEPT and they will appear here.'}</p></div>`;
+  }
+  async function loadAffiliateIntegration() {
+    $('#affConnection').innerHTML = '<div class="card"><span class="skeleton" style="width:40%"></span><span class="skeleton" style="width:70%"></span></div>';
+    $('#affProducts').innerHTML = '<span class="skeleton" style="width:60%"></span>';
+    try {
+      const [status, feed] = await Promise.all([api('/api/affiliate-feed/admin/status'), api('/api/affiliate-feed/products?pageSize=24')]);
+      renderAffiliateConnection(status);
+      renderAffiliateProducts(feed);
+    } catch (err) {
+      $('#affConnection').innerHTML = `<div class="error-row">${icon('warning')}${esc(err.message)}<button type="button" class="retry-btn" data-retry="affiliate">Try again</button></div>`;
+      $('#affProducts').innerHTML = '';
+    }
+  }
+  $('#affRefreshBtn').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    setLoading(btn, true, 'Refreshing…');
+    try {
+      await api('/api/affiliate-feed/admin/refresh', { method: 'POST' });
+      toast('Products refreshed from SHEREBOY AFFILIATE CONCEPT.', 'success');
+    } catch (err) {
+      toast(`Refresh failed: ${err.message}`, 'error', 6000);
+    } finally {
+      setLoading(btn, false);
+      loadAffiliateIntegration();
     }
   });
 

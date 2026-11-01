@@ -92,11 +92,30 @@ function homePage(req, res) {
   res.type('html').send(html);
 }
 
+// /affiliate-products — the same page shell switched to the product showcase,
+// with its own title, description, canonical URL and Open Graph tags. Products
+// are not given pages of their own here: each one links to its authoritative
+// page on SHEREBOY AFFILIATE CONCEPT.
+function affiliatePage(req, res) {
+  let html = withMeta({
+    title: 'Affiliate Products — Discover Products Worth Exploring | SHEREBOY TECH LTD',
+    description: 'Explore a curated collection of products from SHEREBOY AFFILIATE CONCEPT, presented by SHEREBOY TECH LTD to help you discover useful products and exciting offers.',
+    url: `${SITE()}/affiliate-products`
+  });
+  html = html.replace('<meta property="og:type" content="article">', '<meta property="og:type" content="website">')
+    .replace('<body>', '<body data-page="affiliate">')
+    // Un-hide the showcase section (attribute order independent)
+    .replace(/(<section\b[^>]*\bid="affiliate-page"[^>]*?)\s+hidden(\s*>)/, '$1$2');
+  res.set('Cache-Control', 'no-cache');
+  res.type('html').send(html);
+}
+
 async function sitemap(req, res) {
   const projects = await supabase.from('projects').select('id, updated_at').eq('published', true);
   const day = (d) => (d ? new Date(d) : new Date()).toISOString().slice(0, 10);
   const urls = [
     `<url><loc>${SITE()}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>`,
+    `<url><loc>${SITE()}/affiliate-products</loc><changefreq>daily</changefreq><priority>0.7</priority></url>`,
     ...(projects.data || []).map(p => `<url><loc>${SITE()}/projects/${p.id}</loc><lastmod>${day(p.updated_at)}</lastmod><priority>0.7</priority></url>`)
   ];
   res.set('Cache-Control', 'public, max-age=3600');
@@ -107,4 +126,4 @@ function robots(req, res) {
   res.type('text/plain').send(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api\n\nSitemap: ${SITE()}/sitemap.xml\n`);
 }
 
-module.exports = { projectPage, homePage, sitemap, robots };
+module.exports = { projectPage, homePage, affiliatePage, sitemap, robots };
