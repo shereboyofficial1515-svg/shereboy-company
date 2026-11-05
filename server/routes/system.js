@@ -13,6 +13,7 @@ const affiliateFeed = require('../affiliateFeed');
 const seo = require('../seo');
 const errorLog = require('../errorLog');
 const { checkEmbeddable, clearPreviewCache } = require('../previewCheck');
+const { PUBLIC_BUCKET, PRIVATE_BUCKET, bucketProblem } = require('../uploadStore');
 
 router.use(requireAuth, requireRole('admin'));
 router.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
@@ -33,6 +34,14 @@ function securityOverview() {
 
 // GET /api/system/overview
 router.get('/overview', async (req, res) => {
+  const [publicStorage, privateStorage] = await Promise.all([
+    bucketProblem(PUBLIC_BUCKET, true).catch(err => err.message),
+    bucketProblem(PRIVATE_BUCKET, false).catch(err => err.message)
+  ]);
+  const storageChecks = [
+    { label: 'Image uploads', ok: !publicStorage, detail: publicStorage || `Bucket "${PUBLIC_BUCKET}" exists and is public.` },
+    { label: 'Private document uploads', ok: !privateStorage, detail: privateStorage || `Bucket "${PRIVATE_BUCKET}" exists and is private.` }
+  ];
   const [seoStatus, failedLogins, lastEvents] = await Promise.all([
     seo.status(),
     supabase.from('activity_log').select('id', { count: 'exact', head: true })
@@ -45,7 +54,7 @@ router.get('/overview', async (req, res) => {
   const aff = affiliateFeed.snapshot();
   res.json({
     security: {
-      checks: securityOverview(),
+      checks: [...securityOverview(), ...storageChecks],
       failedLogins24h: failedLogins.count || 0,
       recentEvents: lastEvents.data || []
     },

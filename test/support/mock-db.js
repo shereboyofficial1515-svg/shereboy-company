@@ -57,7 +57,8 @@ function normalise(t, r) {
   SCHEMA[t].forEach(c => { row[c] = r[c] !== undefined ? r[c] : (DEFAULTS[t]?.[c] ?? null); });
   return row;
 }
-const BUCKETS = ['sheroboytech-media', 'sheroboy', 'sheroboytech-private'];
+const BUCKETS = (process.env.MOCK_BUCKETS || 'shereboy-media,shereboy-private').split(',');
+const isPublicBucket = (name) => !/private/.test(name);
 const files = new Map(); // bucket/path -> { buf, type }
 
 function send(res, status, body, headers = {}) {
@@ -261,7 +262,7 @@ function handleRest(req, res, t, q, body) {
 function handleStorage(req, res, path, buf) {
   let m;
   if ((m = path.match(/^\/storage\/v1\/bucket\/([^/]+)$/)) && req.method === 'GET') {
-    return BUCKETS.includes(m[1]) ? send(res, 200, { id: m[1], name: m[1], public: true }) : send(res, 400, { statusCode: '404', error: 'Bucket not found', message: 'Bucket not found' });
+    return BUCKETS.includes(m[1]) ? send(res, 200, { id: m[1], name: m[1], public: isPublicBucket(m[1]) }) : send(res, 400, { statusCode: '404', error: 'Bucket not found', message: 'Bucket not found' });
   }
   if (path === '/storage/v1/bucket' && req.method === 'POST') {
     const { name, id } = JSON.parse(buf.toString() || '{}');
@@ -269,7 +270,7 @@ function handleStorage(req, res, path, buf) {
     return send(res, 200, { name: name || id });
   }
   if ((m = path.match(/^\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/)) && req.method === 'GET') {
-    if (m[1] === 'sheroboytech-private') return send(res, 400, { error: 'Bucket is not public' });
+    if (!isPublicBucket(m[1])) return send(res, 400, { error: 'Bucket is not public' });
     const f = files.get(`${m[1]}/${decodeURIComponent(m[2])}`);
     if (!f) return send(res, 404, { error: 'not found' });
     res.writeHead(200, { 'Content-Type': f.type, 'Access-Control-Allow-Origin': '*' }); return res.end(f.buf);
