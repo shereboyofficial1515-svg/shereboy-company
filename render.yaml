@@ -15,9 +15,9 @@ services:
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
       - key: SUPABASE_STORAGE_BUCKET
-        value: sheroboytech-media
+        value: shereboy-media
       - key: SUPABASE_PRIVATE_BUCKET
-        value: sheroboytech-private
+        value: shereboy-private
       - key: SITE_URL
         value: https://shereboytechltd.site
       - key: BLOG_API_BASE_URL

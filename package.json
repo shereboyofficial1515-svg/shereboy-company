@@ -6,7 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node server/server.js",
-    "test": "node --test test/site.test.js test/email.test.js",
+    "test": "node --test test/site.test.js test/email.test.js test/upload.test.js",
     "dev": "node -e \"process.env.NODE_ENV='development';require('./server/server.js')\""
   },
   "dependencies": {

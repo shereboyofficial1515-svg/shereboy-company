@@ -16,8 +16,8 @@ const crypto = require('crypto');
 const supabase = require('./database');
 const { isMissingTableError } = require('./dbCompat');
 
-const PUBLIC_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'sheroboytech-media';
-const PRIVATE_BUCKET = process.env.SUPABASE_PRIVATE_BUCKET || 'sheroboytech-private';
+const PUBLIC_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'shereboy-media';
+const PRIVATE_BUCKET = process.env.SUPABASE_PRIVATE_BUCKET || 'shereboy-private';
 
 const TYPES = {
   'image/jpeg': { ext: 'jpg', max: 5 * 1024 * 1024, sig: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
@@ -77,9 +77,36 @@ function safeDisplayName(name) {
     .slice(0, 120) || 'file';
 }
 
+// Checks that a bucket exists and has the right visibility before anything is uploaded,
+// so a misconfiguration gives an exact, fixable message instead of a vague failure.
+const bucketChecks = new Map(); // name -> { at, problem }
+async function bucketProblem(name, mustBePublic) {
+  const cached = bucketChecks.get(name);
+  if (cached && Date.now() - cached.at < 60 * 1000) return cached.problem;
+  const { data, error } = await supabase.storage.getBucket(name);
+  let problem = null;
+  if (error || !data) {
+    problem = /not found/i.test((error && error.message) || 'not found')
+      ? `The storage bucket "${name}" doesn't exist in Supabase. Create it, or set ${mustBePublic ? 'SUPABASE_STORAGE_BUCKET' : 'SUPABASE_PRIVATE_BUCKET'} to the bucket's exact name.`
+      : `Could not check the storage bucket "${name}": ${error.message}`;
+  } else if (mustBePublic && !data.public) {
+    problem = `The storage bucket "${name}" is private, so uploaded images couldn't be shown on the website. In Supabase, open Storage, edit "${name}" and turn on "Public bucket".`;
+  } else if (!mustBePublic && data.public) {
+    problem = `The storage bucket "${name}" is public, but private documents must go in a bucket that is not public.`;
+  }
+  // Only cache answers that don't need a fix, so a corrected setting is picked up at once
+  if (!problem) bucketChecks.set(name, { at: Date.now(), problem });
+  return problem;
+}
+
 async function storeFile(file, { folder, isPrivate, existingPath, bucket }) {
   const type = TYPES[file.mimetype];
   const targetBucket = bucket || (isPrivate ? PRIVATE_BUCKET : PUBLIC_BUCKET);
+  const problem = await bucketProblem(targetBucket, !isPrivate);
+  if (problem) {
+    console.error('[upload]', problem);
+    return { error: `Upload failed. ${problem}` };
+  }
   const safeFolder = FOLDERS.includes(folder) ? folder : 'media';
   const path = existingPath || `${safeFolder}/${Date.now()}-${crypto.randomBytes(6).toString('hex')}.${type.ext}`;
 
@@ -89,10 +116,10 @@ async function storeFile(file, { folder, isPrivate, existingPath, bucket }) {
     cacheControl: '300'
   });
   if (error) {
-    const hint = isPrivate
-      ? `Make sure a PRIVATE storage bucket named "${targetBucket}" exists in Supabase.`
-      : `Make sure the public storage bucket "${targetBucket}" exists in Supabase.`;
-    return { error: `Upload failed. ${hint}` };
+    // Storage's own reason (e.g. a size or file-type limit set on the bucket). Only
+    // signed-in admins reach this endpoint.
+    console.error('[upload] storage refused the file:', error.message);
+    return { error: `Upload failed: Supabase Storage said "${error.message}" (bucket "${targetBucket}").` };
   }
   const url = isPrivate ? null : supabase.storage.from(targetBucket).getPublicUrl(path).data.publicUrl;
   return { bucket: targetBucket, path, url };
@@ -105,4 +132,4 @@ async function registerAsset(record) {
   return data || null;
 }
 
-module.exports = { TYPES, FOLDERS, PUBLIC_BUCKET, PRIVATE_BUCKET, receiveFile, storeFile, registerAsset, safeDisplayName };
+module.exports = { TYPES, FOLDERS, PUBLIC_BUCKET, PRIVATE_BUCKET, receiveFile, storeFile, registerAsset, safeDisplayName, bucketProblem };

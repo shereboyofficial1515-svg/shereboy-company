@@ -30,9 +30,10 @@ PostgreSQL** (database + storage) · **Gemini API** (AI assistant) · **Render**
 ## 3. Configure Supabase Storage (for images)
 
 1. In Supabase, go to **Storage → Create a new bucket**.
-2. Name it `sheroboytech-media` (or choose your own name — just set
-   `SUPABASE_STORAGE_BUCKET` in `.env` to match).
-3. Make the bucket **public** (so uploaded images can be displayed on the website).
+2. Name it `shereboy-media` (or choose your own name, and set `SUPABASE_STORAGE_BUCKET` to
+   exactly the same name, in `.env` and on Render).
+3. Make the bucket **public**, so uploaded images can be displayed on the website. If uploads fail,
+   **Admin > System** shows whether the bucket exists and whether it is public.
 4. That's it — the backend (`server/routes/upload.js`) handles all uploads through this bucket;
    the browser never talks to Supabase Storage directly.
 
@@ -124,7 +125,7 @@ before you run it — those features simply show a notice in the dashboard until
 `database/migrations/2026-10-29-optional-service-catalogue.sql` is **optional**: review the
 wording, keep only services you really offer, then run it to add the full service catalogue.
 
-For private admin documents, create a second Storage bucket named `sheroboytech-private`
+For private admin documents, create a second Storage bucket named `shereboy-private`
 (or set `SUPABASE_PRIVATE_BUCKET`) and leave it **not public**.
 
 ## 11. Using the admin dashboard (`/admin`)
