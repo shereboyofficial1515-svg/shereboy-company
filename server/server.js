@@ -30,6 +30,8 @@ const mediaRoutes = require('./routes/media');
 const adminUserRoutes = require('./routes/adminUsers');
 const systemRoutes = require('./routes/system');
 const newsletterRoutes = require('./routes/newsletter');
+const feedbackRoutes = require('./routes/feedback');
+const feedbackAdminRoutes = require('./routes/feedbackAdmin');
 const emailWebhookRoutes = require('./routes/emailWebhook');
 const emailMarketingRoutes = require('./routes/emailMarketing');
 const mailWorker = require('./mail/worker');
@@ -135,6 +137,8 @@ app.use('/api/media', mediaRoutes);
 app.use('/api/admin', adminUserRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/feedback', feedbackRoutes);
+app.use('/api/feedback-admin', feedbackAdminRoutes);
 app.use('/api/email', emailMarketingRoutes);
 
 // Unknown API routes return JSON 404s (never the HTML app shell)
@@ -144,7 +148,7 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'Not found.' }));
 app.get('/sitemap.xml', seo.sitemap);
 app.get('/robots.txt', seo.robots);
 // One address per page: drop trailing slashes, and never serve the raw page template
-app.get(/^\/(about|services|projects|contact|affiliate-products)\/$/, (req, res) => res.redirect(301, req.path.slice(0, -1) + (req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '')));
+app.get(/^\/(about|services|projects|contact|affiliate-products|feedback)\/$/, (req, res) => res.redirect(301, req.path.slice(0, -1) + (req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : '')));
 app.get('/index.html', (req, res) => res.redirect(301, '/'));
 // A page view starts waking SHEREBOY BLOG and SHEREBOY AFFILIATE CONCEPT in the
 // background. It returns immediately: pages never wait for those services.
@@ -156,6 +160,7 @@ app.get('/projects', pageRoute, seo.staticPage('projects'));
 app.get('/contact', pageRoute, seo.staticPage('contact'));
 app.get('/affiliate-products', pageRoute, seo.staticPage('affiliate'));
 app.get('/projects/:id', pageRoute, seo.projectPage);
+app.get('/feedback', pageRoute, seo.feedbackPage);
 app.get('/newsletter/confirm', seo.newsletterPage('confirm'));
 app.get('/newsletter/unsubscribe', seo.newsletterPage('unsubscribe'));
 // Old internal article URLs: articles now live on SHEREBOY BLOG — send visitors to the Insights section

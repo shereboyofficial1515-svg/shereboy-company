@@ -69,6 +69,12 @@ const PAGES = {
     title: `Contact ${COMPANY} | Start Your Project`,
     description: `Tell ${COMPANY} about your website, web application or business software project. Send an enquiry and get a reply from our team.`
   },
+  feedback: {
+    path: '/feedback',
+    crumb: 'Feedback',
+    title: `Share Your Feedback | ${COMPANY}`,
+    description: `Tell ${COMPANY} what you think of JOB RUSH, ACHIEVER, SHEREBLOGNEWS and our other products. Report a problem, request a feature or leave a review.`
+  },
   affiliate: {
     path: '/affiliate-products',
     crumb: 'Affiliate Products',
@@ -375,6 +381,20 @@ function staticPage(pageKey) {
   };
 }
 
+// The public feedback page. Products are loaded from the database by app.js, so a
+// product added in the dashboard appears here without any code change.
+const FEEDBACK_FORM = "<section class=\"section feedback-page\" aria-labelledby=\"feedbackTitle\">\n      <div class=\"container feedback-page__inner\">\n        <div class=\"feedback-page__intro\">\n          <h1 class=\"section-title\" id=\"feedbackTitle\">Share your feedback.</h1>\n          <p class=\"section-lede\">Tell us what is working, what is not, and what you would like next. Every message is read by our team. No account needed.</p>\n        </div>\n        <form class=\"fb-form\" id=\"feedbackForm\" novalidate>\n          <div class=\"fb-field\"><label for=\"fbProduct\">Product <span aria-hidden=\"true\">*</span></label><select id=\"fbProduct\" name=\"product\" required><option value=\"\">Loading products…</option></select><p class=\"fb-error\" id=\"fbProductError\" aria-live=\"polite\"></p></div>\n          <fieldset class=\"fb-field fb-stars-field\">\n            <legend>Your rating <span aria-hidden=\"true\">*</span></legend>\n            <div class=\"fb-stars\"><input type=\"radio\" id=\"fbStar5\" name=\"rating\" value=\"5\"><label for=\"fbStar5\" title=\"5 stars\"><span class=\"sr-only\">5 stars</span><svg class=\"icon\" aria-hidden=\"true\"><use href=\"#i-star\"/></svg></label><input type=\"radio\" id=\"fbStar4\" name=\"rating\" value=\"4\"><label for=\"fbStar4\" title=\"4 stars\"><span class=\"sr-only\">4 stars</span><svg class=\"icon\" aria-hidden=\"true\"><use href=\"#i-star\"/></svg></label><input type=\"radio\" id=\"fbStar3\" name=\"rating\" value=\"3\"><label for=\"fbStar3\" title=\"3 stars\"><span class=\"sr-only\">3 stars</span><svg class=\"icon\" aria-hidden=\"true\"><use href=\"#i-star\"/></svg></label><input type=\"radio\" id=\"fbStar2\" name=\"rating\" value=\"2\"><label for=\"fbStar2\" title=\"2 stars\"><span class=\"sr-only\">2 stars</span><svg class=\"icon\" aria-hidden=\"true\"><use href=\"#i-star\"/></svg></label><input type=\"radio\" id=\"fbStar1\" name=\"rating\" value=\"1\"><label for=\"fbStar1\" title=\"1 star\"><span class=\"sr-only\">1 star</span><svg class=\"icon\" aria-hidden=\"true\"><use href=\"#i-star\"/></svg></label></div>\n            <p class=\"fb-error\" id=\"fbRatingError\" aria-live=\"polite\"></p>\n          </fieldset>\n          <div class=\"fb-field\"><label for=\"fbCategory\">Category <span aria-hidden=\"true\">*</span></label><select id=\"fbCategory\" name=\"category\" required><option value=\"\">Choose a category</option><option value=\"general\">General Review</option><option value=\"bug\">Bug Report</option><option value=\"feature\">Feature Request</option><option value=\"complaint\">Complaint</option><option value=\"suggestion\">Suggestion</option><option value=\"ux\">User Experience</option><option value=\"other\">Other</option></select><p class=\"fb-error\" id=\"fbCategoryError\" aria-live=\"polite\"></p></div>\n          <div class=\"fb-field\"><label for=\"fbSubject\">Subject <span aria-hidden=\"true\">*</span></label><input id=\"fbSubject\" name=\"subject\" maxlength=\"150\" required><p class=\"fb-error\" id=\"fbSubjectError\" aria-live=\"polite\"></p></div>\n          <div class=\"fb-field\"><label for=\"fbMessage\">Your feedback <span aria-hidden=\"true\">*</span></label><textarea id=\"fbMessage\" name=\"message\" rows=\"6\" maxlength=\"5000\" required></textarea><p class=\"fb-error\" id=\"fbMessageError\" aria-live=\"polite\"></p></div>\n          <div class=\"fb-row\">\n            <div class=\"fb-field\"><label for=\"fbName\">Name (optional)</label><input id=\"fbName\" name=\"name\" maxlength=\"100\" autocomplete=\"name\"><p class=\"fb-error\" id=\"fbNameError\" aria-live=\"polite\"></p></div>\n            <div class=\"fb-field\"><label for=\"fbEmail\">Email (optional)</label><input id=\"fbEmail\" name=\"email\" type=\"email\" maxlength=\"254\" autocomplete=\"email\"><p class=\"fb-hint\">Only if you would like a reply.</p><p class=\"fb-error\" id=\"fbEmailError\" aria-live=\"polite\"></p></div>\n          </div>\n          <div class=\"fb-field\"><label for=\"fbFiles\">Screenshots or files (optional)</label><input id=\"fbFiles\" name=\"attachments\" type=\"file\" multiple accept=\"image/jpeg,image/png,image/webp,image/gif,application/pdf\"><p class=\"fb-hint\">Up to 3 files: images or PDFs, 5MB each. Only our team can see them.</p><p class=\"fb-error\" id=\"fbFilesError\" aria-live=\"polite\"></p></div>\n          <label class=\"fb-check\"><input type=\"checkbox\" id=\"fbPublish\" name=\"allow_publish\" value=\"true\"> You may publish my review as a testimonial, with my name if I gave one. Never my email.</label>\n          <input type=\"text\" name=\"website\" class=\"newsletter-form__trap\" tabindex=\"-1\" autocomplete=\"off\" aria-hidden=\"true\">\n          <p class=\"fb-status\" id=\"fbStatus\" role=\"status\" hidden></p>\n          <button type=\"submit\" class=\"btn btn--primary btn--lg\" id=\"fbSubmit\">Send feedback</button>\n          <p class=\"fb-hint\">We use what you send only to understand and improve our products, and to reply if you asked us to.</p>\n        </form>\n        <div class=\"fb-done\" id=\"feedbackDone\" hidden tabindex=\"-1\">\n          <h2 class=\"section-title\">Thank you. Your feedback has been received.</h2>\n          <p class=\"section-lede\">Your reference number is <strong id=\"fbReference\"></strong>. Keep it if you want to contact us about this feedback.</p>\n          <button type=\"button\" class=\"btn btn--ghost\" id=\"fbAnother\">Send more feedback</button>\n        </div>\n      </div>\n    </section>\n    <section class=\"section fb-testimonials\" id=\"feedbackTestimonials\" aria-labelledby=\"fbTestimonialsTitle\" hidden>\n      <div class=\"container\"><h2 class=\"section-title\" id=\"fbTestimonialsTitle\">What people say</h2><div class=\"reviews\" id=\"fbTestimonialList\"></div></div>\n    </section>";
+async function feedbackPage(req, res) {
+  const def = PAGES.feedback;
+  const { company, services } = await siteData();
+  const trail = [{ name: 'Home', path: '/' }, { name: def.crumb, path: def.path }];
+  send(res, renderShell('feedback', {
+    title: def.title, description: def.description, url: `${SITE()}${def.path}`,
+    ld: [organizationLd(company), websiteLd(), breadcrumbLd(trail)], company, services,
+    top: `${breadcrumbsHtml(trail)}${FEEDBACK_FORM}`
+  }));
+}
+
 // Confirm and unsubscribe pages. The action happens on a button press in the page,
 // never on opening the link, because email security scanners open links by themselves.
 function newsletterPage(kind) {
@@ -478,6 +498,7 @@ async function sitemapEntries() {
     { loc: `${base}/projects`, lastmod: newest(projectDays) },
     { loc: `${base}/contact`, lastmod: newest(companyDay) },
     { loc: `${base}/affiliate-products`, lastmod: null },
+    { loc: `${base}/feedback`, lastmod: null },
     ...projectRows.map(p => ({ loc: `${base}/projects/${p.id}`, lastmod: newest(p.updated_at) }))
   ];
 }
@@ -512,5 +533,5 @@ async function status() {
 }
 
 module.exports = {
-  staticPage, notFound, projectPage, newsletterPage, sitemap, robots, status, refreshSiteData, PAGES
+  staticPage, notFound, projectPage, newsletterPage, feedbackPage, sitemap, robots, status, refreshSiteData, PAGES
 };

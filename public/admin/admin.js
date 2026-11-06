@@ -434,7 +434,7 @@
   });
 
   // Shared with the separate email center script (admin/email.js)
-  window.AdminKit = { api, json, esc, toast, confirmDialog, timeAgo, fmtDate, openDialog, closeDialog };
+  window.AdminKit = { api, json, esc, toast, confirmDialog, timeAgo, fmtDate, openDialog, closeDialog, isAdmin: () => isAdmin() };
 
   const VIEWS = {
     overview: { title: 'Overview', load: () => loadOverview() },
@@ -450,6 +450,7 @@
     accounts: { title: 'Administrator Accounts', load: () => loadAccounts(), admin: true },
     security: { title: 'Security & Activity', load: () => loadActivity(), admin: true },
     system: { title: 'System', load: () => loadSystem(), admin: true },
+    feedback: { title: 'Reviews & Feedback', load: () => window.FeedbackCenter && window.FeedbackCenter.load() },
     email: { title: 'Email Marketing', load: () => window.EmailCenter && window.EmailCenter.load(), admin: true }
   };
 

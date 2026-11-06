@@ -30,10 +30,22 @@ const EMAIL_SCHEMA = {
   email_events: ['id', 'event_key', 'type', 'provider_id', 'email', 'campaign_id', 'detail', 'occurred_at', 'processed_at', 'created_at', 'updated_at'],
   email_settings: ['id', 'sender_name', 'sender_email', 'reply_to', 'newsletter_description', 'confirmation_subject', 'confirmation_intro', 'confirmation_expiry_hours', 'welcome_enabled', 'welcome_subject', 'welcome_body', 'footer_text', 'logo_url', 'contact_address', 'contact_email', 'contact_phone', 'created_at', 'updated_at']
 };
-if (MIGRATED) Object.assign(SCHEMA, EMAIL_SCHEMA);
-const UNIQUE = { email_subscribers: ['email'], email_suppressions: ['email'], email_events: ['event_key'], email_campaign_recipients: ['campaign_id', 'email'], email_settings: ['id'] };
+const FEEDBACK_SCHEMA = {
+  products: ['id', 'slug', 'name', 'description', 'logo_url', 'website_url', 'is_active', 'display_order', 'created_at', 'updated_at'],
+  feedback: ['id', 'reference', 'product_id', 'name', 'email', 'rating', 'category', 'subject', 'message', 'allow_publish', 'status', 'is_read', 'suspected_spam', 'submitter_hash', 'content_hash', 'resolved_at', 'created_at', 'updated_at'],
+  feedback_attachments: ['id', 'feedback_id', 'bucket', 'storage_path', 'file_name', 'mime_type', 'size_bytes', 'created_at', 'updated_at'],
+  feedback_responses: ['id', 'feedback_id', 'message', 'admin_username', 'email_status', 'email_error', 'created_at', 'updated_at'],
+  feedback_internal_notes: ['id', 'feedback_id', 'note', 'admin_username', 'created_at', 'updated_at'],
+  testimonials: ['id', 'feedback_id', 'product_id', 'status', 'featured', 'display_name', 'quote', 'rating', 'approved_by', 'approved_at', 'created_at', 'updated_at']
+};
+if (MIGRATED) Object.assign(SCHEMA, EMAIL_SCHEMA, FEEDBACK_SCHEMA);
+const UNIQUE = { products: ['slug'], feedback: ['reference'], testimonials: ['feedback_id'], email_subscribers: ['email'], email_suppressions: ['email'], email_events: ['event_key'], email_campaign_recipients: ['campaign_id', 'email'], email_settings: ['id'] };
 const clash = (t, row) => UNIQUE[t] && db[t].find(r => UNIQUE[t].every(c => r[c] === row[c] && row[c] !== undefined));
 const DEFAULTS = {
+  products: { is_active: true, display_order: 0 },
+  feedback: { status: 'new', is_read: false, suspected_spam: false, allow_publish: false },
+  feedback_responses: { email_status: 'not_sent' },
+  testimonials: { status: 'pending', featured: false },
   email_campaigns: { audience: {}, stats: {}, retry_count: 0, recipients_built: false, recipient_count: 0 },
   email_campaign_recipients: { attempts: 0 },
   email_subscribers: { resend_sync_needed: false },

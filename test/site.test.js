@@ -110,7 +110,7 @@ test('sitemap is well formed, lists only public pages and has real dates', async
   assert.match(r.headers.get('content-type'), /xml/);
   assert.ok(text.startsWith('<?xml version="1.0" encoding="UTF-8"?>'));
   const locs = [...text.matchAll(/<loc>(.*?)<\/loc>/g)].map(m => m[1]);
-  assert.deepEqual(locs, ['/', '/about', '/services', '/projects', '/contact', '/affiliate-products', `/projects/${PROJECT_ID}`].map(p => `https://shereboytechltd.site${p}`));
+  assert.deepEqual(locs, ['/', '/about', '/services', '/projects', '/contact', '/affiliate-products', '/feedback', `/projects/${PROJECT_ID}`].map(p => `https://shereboytechltd.site${p}`));
   assert.ok(text.includes(`/projects/${PROJECT_ID}</loc><lastmod>2026-10-03</lastmod>`));
   assert.ok(!/admin|\/api/.test(text));
 });
