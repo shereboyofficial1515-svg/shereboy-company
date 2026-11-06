@@ -624,3 +624,32 @@ a.kpi:hover { border-color: var(--line-2); transform: translateY(-2px); }
   .em-compose__main.card { padding: 14px; }
   .em-stat strong { font-size: 1.3rem; }
 }
+
+
+/* ---------- Reviews & Feedback ---------- */
+#feedbackCenter { display: grid; gap: 16px; min-width: 0; }
+.fb-grid { display: grid; gap: 16px; }
+@media (min-width: 1100px) { .fb-grid { grid-template-columns: 1fr 1fr; } }
+.fb-chart { display: grid; gap: 8px; }
+.fb-hbars { display: grid; gap: 8px; }
+.fb-hbar { display: grid; grid-template-columns: minmax(90px, 140px) 1fr auto; gap: 10px; align-items: center; font-size: .86rem; }
+.fb-hbar__label { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-hbar__track { height: 10px; border-radius: 6px; background: var(--surface-2); overflow: hidden; }
+.fb-hbar__fill { display: block; height: 100%; border-radius: 6px; background: var(--blue); }
+.fb-hbar__value { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 2.5em; text-align: right; }
+.fb-stars-text { color: var(--amber); letter-spacing: 1px; white-space: nowrap; }
+.fb-unread td:first-child strong::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--blue); margin-right: 8px; vertical-align: middle; }
+.fb-message { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; padding: 14px 16px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
+.fb-thread { display: grid; gap: 10px; }
+.fb-thread__item { padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); }
+.fb-thread__item p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.fb-thread__meta { color: var(--muted); font-size: .78rem; margin-bottom: 4px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.fb-thread__item--note { border-style: dashed; background: var(--surface); }
+.fb-files { display: flex; flex-wrap: wrap; gap: 8px; }
+.fb-link { display: flex; gap: 8px; align-items: center; }
+.fb-link input { flex: 1; min-width: 0; min-height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--field); color: var(--text); font-family: var(--font-mono); font-size: .78rem; }
+.fb-product-logo { width: 40px; height: 40px; border-radius: 10px; object-fit: contain; background: var(--surface-2); border: 1px solid var(--line); flex-shrink: 0; }
+.fb-product-head { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.fb-filters { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.fb-filters input, .fb-filters select { min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--field); color: var(--text); width: 100%; }
+.fb-filters .fb-search { grid-column: 1 / -1; }

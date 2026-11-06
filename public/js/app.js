@@ -866,10 +866,20 @@
     return String(text || '').split(/\n\s*\n|\n/).map(t => t.trim()).filter(Boolean)
       .map(t => `<p>${escapeHtml(t).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')}</p>`).join('');
   }
+  // Featured customer testimonials (approved in Reviews & Feedback, with the customer's
+  // permission) join the existing client reviews, labelled with their product
+  async function featuredTestimonials() {
+    try {
+      const { testimonials } = await apiGet('/api/feedback/testimonials?featured=1&limit=6');
+      return (testimonials || []).map(t => ({ client_name: t.name, client_position: t.product ? `${t.product} user` : '', review_text: t.quote, rating: t.rating }));
+    } catch { return []; }
+  }
+
   async function loadReviews() {
     try {
-      const { reviews } = await apiGet('/api/reviews');
-      if (!reviews || !reviews.length) return;
+      const [{ reviews: own }, extra] = await Promise.all([apiGet('/api/reviews'), featuredTestimonials()]);
+      const reviews = [...(own || []), ...extra];
+      if (!reviews.length) return;
       const list = $('#reviewsList');
       list.classList.toggle('reviews--single', reviews.length === 1);
       list.innerHTML = reviews.slice(0, 6).map(r => {
@@ -1561,6 +1571,95 @@
         setButtonLoading(action, false);
       }
     });
+  })();
+
+  // =========================================================
+  // Feedback page: products come from the database, never from this file
+  // =========================================================
+  (function initFeedbackPage() {
+    const form = $('#feedbackForm');
+    if (!form || !document.getElementById('feedbackForm')) return;
+    const select = $('#fbProduct');
+    const status = $('#fbStatus');
+    const submit = $('#fbSubmit');
+    const wanted = new URLSearchParams(location.search).get('product') || '';
+    const setError = (id, msg) => {
+      const el = document.getElementById(`${id}Error`);
+      if (el) el.textContent = msg;
+      const input = document.getElementById(id);
+      if (input) { if (msg) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid'); }
+    };
+    const say = (msg, kind) => { status.textContent = msg; status.className = `fb-status fb-status--${kind}`; status.hidden = false; };
+
+    apiGet('/api/feedback/products').then(({ products }) => {
+      if (!products.length) { select.innerHTML = '<option value="">No products are open for feedback yet</option>'; submit.disabled = true; return; }
+      select.innerHTML = `<option value="">Choose a product</option>${products.map(p => `<option value="${escapeHtml(p.slug)}">${escapeHtml(p.name)}</option>`).join('')}`;
+      if (products.some(p => p.slug === wanted)) { select.value = wanted; loadFeedbackTestimonials(wanted); } else loadFeedbackTestimonials('');
+    }).catch((err) => {
+      select.innerHTML = '<option value="">Feedback is not available right now</option>';
+      submit.disabled = true;
+      say(err.message, 'error');
+    });
+    select.addEventListener('change', () => loadFeedbackTestimonials(select.value));
+
+    function validate() {
+      const checks = [
+        ['fbProduct', select.value ? '' : 'Choose the product you are giving feedback on.'],
+        ['fbRating', form.querySelector('input[name="rating"]:checked') ? '' : 'Choose a rating from 1 to 5 stars.'],
+        ['fbCategory', $('#fbCategory').value ? '' : 'Choose a category.'],
+        ['fbSubject', $('#fbSubject').value.trim().length >= 3 ? '' : 'Add a short subject.'],
+        ['fbMessage', $('#fbMessage').value.trim().length >= 10 ? '' : 'Please write at least 10 characters.'],
+        ['fbEmail', !$('#fbEmail').value.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test($('#fbEmail').value.trim()) ? '' : 'Enter a valid email address, or leave it empty.']
+      ];
+      const files = Array.from($('#fbFiles').files || []);
+      checks.push(['fbFiles', files.length > 3 ? 'You can attach up to 3 files.' : (files.some(f => f.size > 5 * 1024 * 1024) ? 'Each file can be up to 5MB.' : '')]);
+      checks.forEach(([id, msg]) => setError(id, msg));
+      const first = checks.find(([, msg]) => msg);
+      if (first) (document.getElementById(first[0]) || form.querySelector('input[name="rating"]')).focus();
+      return !first;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      status.hidden = true;
+      if (!validate()) return;
+      setButtonLoading(submit, true, 'Sending…');
+      try {
+        const res = await fetch('/api/feedback', { method: 'POST', body: new FormData(form), headers: { Accept: 'application/json' } });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'We could not send your feedback. Please try again.');
+        $('#fbReference').textContent = data.reference;
+        form.hidden = true;
+        $('#feedbackDone').hidden = false;
+        $('#feedbackDone').focus();
+      } catch (err) {
+        say(err.message === 'Failed to fetch' ? 'You appear to be offline. Please check your connection and try again.' : err.message, 'error');
+      } finally {
+        setButtonLoading(submit, false);
+      }
+    });
+    $('#fbAnother').addEventListener('click', () => {
+      const keep = select.value;
+      form.reset();
+      select.value = keep;
+      $('#feedbackDone').hidden = true;
+      form.hidden = false;
+      $('#fbSubject').focus();
+    });
+
+    async function loadFeedbackTestimonials(slug) {
+      const wrap = $('#feedbackTestimonials');
+      try {
+        const { testimonials } = await apiGet(`/api/feedback/testimonials?limit=6${slug ? `&product=${encodeURIComponent(slug)}` : ''}`);
+        if (!testimonials.length) { wrap.hidden = true; return; }
+        $('#fbTestimonialList').innerHTML = testimonials.map(t => `<figure class="review">
+          <div class="review__stars" role="img" aria-label="Rated ${t.rating} out of 5">${icon('star').repeat(t.rating)}${icon('star', 'is-empty').repeat(5 - t.rating)}</div>
+          <blockquote class="review__text">${reviewText(t.quote)}</blockquote>
+          <figcaption class="review__who"><div><strong>${escapeHtml(t.name)}</strong><span>${escapeHtml(t.product || '')}</span></div></figcaption>
+        </figure>`).join('');
+        wrap.hidden = false;
+      } catch { wrap.hidden = true; }
+    }
   })();
 
   // =========================================================
