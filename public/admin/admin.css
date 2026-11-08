@@ -653,3 +653,15 @@ a.kpi:hover { border-color: var(--line-2); transform: translateY(-2px); }
 .fb-filters { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
 .fb-filters input, .fb-filters select { min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--field); color: var(--text); width: 100%; }
 .fb-filters .fb-search { grid-column: 1 / -1; }
+.fb-ai { display: grid; gap: 8px; margin-top: 16px; padding: 14px 16px; border-radius: 10px; border: 1px solid rgb(var(--accent-rgb) / .35); background: rgb(var(--accent-rgb) / .06); }
+.fb-ai p { margin: 0; overflow-wrap: anywhere; }
+.fb-ai__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.fb-ai__head .em-subhead { margin: 0; }
+.fb-ai__warn { color: var(--red-text); font-size: .88rem; }
+.fb-ai__qs { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.fb-ai__reply summary { cursor: pointer; color: var(--blue-2); }
+.fb-ai__reply p { white-space: pre-wrap; margin: 8px 0; }
+.fb-compose { display: grid; gap: 4px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+.fb-compose__row { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.fb-compose textarea, .fb-compose input, .fb-compose select { width: 100%; }
+.fb-thread__item--in { border-color: rgb(var(--cyan-rgb) / .45); background: rgb(var(--cyan-rgb) / .06); }

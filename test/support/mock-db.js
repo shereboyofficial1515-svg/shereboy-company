@@ -32,19 +32,29 @@ const EMAIL_SCHEMA = {
 };
 const FEEDBACK_SCHEMA = {
   products: ['id', 'slug', 'name', 'description', 'logo_url', 'website_url', 'is_active', 'display_order', 'created_at', 'updated_at'],
-  feedback: ['id', 'reference', 'product_id', 'name', 'email', 'rating', 'category', 'subject', 'message', 'allow_publish', 'status', 'is_read', 'suspected_spam', 'submitter_hash', 'content_hash', 'source', 'external_id', 'submitted_at', 'resolved_at', 'created_at', 'updated_at'],
+  feedback: ['id', 'reference', 'product_id', 'name', 'email', 'rating', 'category', 'subject', 'message', 'allow_publish', 'status', 'is_read', 'suspected_spam', 'submitter_hash', 'content_hash', 'source', 'external_id', 'submitted_at', 'resolved_at', 'created_at', 'updated_at',
+    'confirmation_status', 'confirmation_attempts', 'confirmation_error', 'confirmation_sent_at', 'ai_classification', 'sentiment', 'ai_summary', 'ai_follow_up_questions', 'ai_suggested_reply', 'needs_attention', 'attention_reason', 'ai_status', 'ai_analyzed_at', 'ai_handled', 'awaiting_customer'],
   feedback_attachments: ['id', 'feedback_id', 'bucket', 'storage_path', 'file_name', 'mime_type', 'size_bytes', 'created_at', 'updated_at'],
   feedback_responses: ['id', 'feedback_id', 'message', 'admin_username', 'email_status', 'email_error', 'created_at', 'updated_at'],
   feedback_internal_notes: ['id', 'feedback_id', 'note', 'admin_username', 'created_at', 'updated_at'],
-  testimonials: ['id', 'feedback_id', 'product_id', 'status', 'featured', 'display_name', 'quote', 'rating', 'approved_by', 'approved_at', 'created_at', 'updated_at']
+  testimonials: ['id', 'feedback_id', 'product_id', 'status', 'featured', 'display_name', 'quote', 'rating', 'approved_by', 'approved_at', 'created_at', 'updated_at'],
+  feedback_emails: ['id', 'feedback_id', 'direction', 'kind', 'subject', 'body', 'to_email', 'author', 'ai_generated', 'status', 'error', 'attempts', 'provider_id', 'approved_by', 'sent_at', 'created_at', 'updated_at'],
+  feedback_ai_settings: ['id', 'auto_reply_enabled', 'require_approval', 'status_emails_enabled', 'updated_by', 'created_at', 'updated_at'],
+  feedback_ai_log: ['id', 'feedback_id', 'action', 'actor', 'outcome', 'detail', 'created_at', 'updated_at']
 };
 if (MIGRATED) Object.assign(SCHEMA, EMAIL_SCHEMA, FEEDBACK_SCHEMA);
+if (process.argv.includes('--before-comms')) {
+  ['feedback_emails', 'feedback_ai_settings', 'feedback_ai_log'].forEach(t => delete SCHEMA[t]);
+  SCHEMA.feedback = SCHEMA.feedback.slice(0, SCHEMA.feedback.indexOf('confirmation_status'));
+}
 const UNIQUE = { products: ['slug'], feedback: ['reference'], feedback_external: ['product_id', 'source', 'external_id'], testimonials: ['feedback_id'], email_subscribers: ['email'], email_suppressions: ['email'], email_events: ['event_key'], email_campaign_recipients: ['campaign_id', 'email'], email_settings: ['id'] };
 const uniqueClash = (t, keys, row) => db[t].find(r => keys.every(c => r[c] === row[c] && row[c] !== undefined && row[c] !== null));
 const clash = (t, row) => (UNIQUE[t] && uniqueClash(t, UNIQUE[t], row)) || (t === 'feedback' && uniqueClash(t, UNIQUE.feedback_external, row));
 const DEFAULTS = {
   products: { is_active: true, display_order: 0 },
-  feedback: { status: 'new', is_read: false, suspected_spam: false, allow_publish: false, source: 'website' },
+  feedback: { status: 'new', is_read: false, suspected_spam: false, allow_publish: false, source: 'website', confirmation_status: 'not_required', confirmation_attempts: 0, ai_follow_up_questions: [], needs_attention: false, ai_status: 'pending', ai_handled: false, awaiting_customer: false },
+  feedback_emails: { direction: 'outbound', ai_generated: false, attempts: 0 },
+  feedback_ai_settings: { auto_reply_enabled: false, require_approval: true, status_emails_enabled: true },
   feedback_responses: { email_status: 'not_sent' },
   testimonials: { status: 'pending', featured: false },
   email_campaigns: { audience: {}, stats: {}, retry_count: 0, recipients_built: false, recipient_count: 0 },

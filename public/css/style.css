@@ -197,6 +197,22 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   .nav__cta { display: inline-flex; }
   .nav__toggle { display: none; }
 }
+.nav__links a { white-space: nowrap; }
+/* Eight links, the full name, the theme switch and the button fit on one row */
+@media (min-width: 1000px) {
+  .nav__inner { gap: 16px; }
+  .nav__brand { flex-shrink: 0; }
+  .nav__links a { padding: 8px 9px; }
+  .nav__links a::after { left: 9px; right: 9px; }
+}
+@media (min-width: 1000px) and (max-width: 1239px) {
+  .nav__inner { gap: 12px; }
+  .nav__links { gap: 0; }
+  .nav__links a { padding: 8px 7px; font-size: .86rem; }
+  .nav__links a::after { left: 7px; right: 7px; }
+  .nav__wordmark span { display: none; }
+}
+@media (min-width: 1000px) and (max-width: 1099px) { .nav__brand .nav__wordmark { display: none; } }
 @media (max-width: 380px) { .nav__wordmark span { display: none; } .nav__mark { width: 54px; } }
 
 /* Mobile drawer */
