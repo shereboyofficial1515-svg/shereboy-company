@@ -32,6 +32,8 @@ const systemRoutes = require('./routes/system');
 const newsletterRoutes = require('./routes/newsletter');
 const feedbackRoutes = require('./routes/feedback');
 const feedbackAdminRoutes = require('./routes/feedbackAdmin');
+const feedbackAssistRoutes = require('./routes/feedbackAssist');
+const feedbackComms = require('./feedbackComms');
 const emailWebhookRoutes = require('./routes/emailWebhook');
 const emailMarketingRoutes = require('./routes/emailMarketing');
 const mailWorker = require('./mail/worker');
@@ -139,6 +141,7 @@ app.use('/api/system', systemRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/feedback-admin', feedbackAdminRoutes);
+app.use('/api/feedback-admin', feedbackAssistRoutes);
 app.use('/api/email', emailMarketingRoutes);
 
 // Unknown API routes return JSON 404s (never the HTML app shell)
@@ -220,5 +223,6 @@ app.listen(PORT, () => {
   affiliateFeed.startPeriodicRefresh();
   seo.refreshSiteData();
   mailWorker.startWorker();
+  feedbackComms.startSweeper();
   console.log(`SHEREBOY TECH LTD server running on port ${PORT}`);
 });

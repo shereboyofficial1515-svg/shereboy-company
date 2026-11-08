@@ -115,12 +115,12 @@ function notifyNewContactMessage({ name, email, phone, subject, message }) {
 }
 function notifyNewFeedback({ reference, product, rating, category, subject }) {
     return sendEmail({
-        subject: `New feedback for ${product}: ${rating}/5, ${category}`,
+        subject: `New feedback for ${product}: ${Number.isInteger(rating) ? `${rating}/5, ` : ''}${category}`,
         html: `
       <h2>New feedback received</h2>
       <p><strong>Reference:</strong> ${escapeHtml(reference)}</p>
       <p><strong>Product:</strong> ${escapeHtml(product)}</p>
-      <p><strong>Rating:</strong> ${rating} / 5</p>
+      <p><strong>Rating:</strong> ${Number.isInteger(rating) ? `${rating} / 5` : 'No rating (sent from an app)'}</p>
       <p><strong>Category:</strong> ${escapeHtml(category)}</p>
       <p><strong>Subject:</strong> ${escapeHtml(subject)}</p>
       <p>Read and reply in the admin dashboard under Reviews &amp; Feedback.</p>

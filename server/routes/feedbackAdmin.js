@@ -13,6 +13,8 @@ const { getSettings, fromHeader, replyToHeader } = require('../mail/config');
 const { getResend } = require('../mail/resendClient');
 const { buildMessage } = require('../mail/render');
 const errorLog = require('../errorLog');
+const comms = require('../feedbackComms');
+const { aiConfigured } = require('../feedbackAi');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const nowIso = () => new Date().toISOString();
@@ -23,14 +25,22 @@ router.use(requireAuth);
 // The "source" column arrives with the 2026-11-08 migration. Until it has been run,
 // queries leave it out, so the dashboard keeps working before and after the update.
 let sourceReady = false;
+// Likewise the email and AI columns (2026-11-09 migration)
+let commsOn = false;
 router.use(async (req, res, next) => {
   if (!sourceReady) {
-    const { error } = await supabase.from('feedback').select(cols('source')).limit(1);
+    const { error } = await supabase.from('feedback').select('source').limit(1);
     sourceReady = !error;
   }
+  commsOn = await comms.commsReady();
   next();
 });
-const cols = (list) => (sourceReady ? list : list.replace(/,\s*source\b/g, ''));
+const COMMS_COLS = ', confirmation_status, sentiment, ai_classification, needs_attention, ai_handled, awaiting_customer';
+const cols = (list) => {
+  let out = sourceReady ? list : list.replace(/,\s*source\b/g, '');
+  if (commsOn) out = out.replace(/(,\s*source\b|,\s*created_at\b)/, (m) => `${COMMS_COLS}${m}`);
+  return out;
+};
 router.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 router.param('id', (req, res, next, id) => (UUID_RE.test(id) ? next() : res.status(404).json({ error: 'Not found.' })));
 
@@ -95,6 +105,12 @@ router.get('/overview', handle(async (req, res) => {
     categories: Object.entries(CATEGORIES).map(([key, label]) => ({ key, label, count: rows.filter(r => r.category === key).length })),
     byProduct,
     unrated: rows.filter(r => !Number.isFinite(r.rating)).length,
+    comms: commsOn,
+    sentiment: { positive: rows.filter(r => r.sentiment === 'positive').length, neutral: rows.filter(r => r.sentiment === 'neutral').length, negative: rows.filter(r => r.sentiment === 'negative').length, unanalysed: rows.filter(r => !r.sentiment).length },
+    needsAttention: rows.filter(r => r.needs_attention && !['resolved', 'archived'].includes(r.status)).length,
+    aiHandled: rows.filter(r => r.ai_handled).length,
+    awaitingCustomer: rows.filter(r => r.awaiting_customer && !['resolved', 'archived'].includes(r.status)).length,
+    pendingApproval: commsOn ? ((await supabase.from('feedback_emails').select('id', { count: 'exact', head: true }).eq('status', 'pending_approval')).count || 0) : 0,
     sources: Object.entries(rows.reduce((acc, r) => { acc[r.source || 'website'] = (acc[r.source || 'website'] || 0) + 1; return acc; }, {})).map(([source, count]) => ({ source, count })),
     updatedAt: new Date().toISOString()
   });
@@ -110,6 +126,9 @@ function applyFilters(q, f) {
   else if (f.status !== 'all') query = query.neq('status', 'archived');
   if (sourceReady && f.source === 'website') query = query.eq('source', 'website');
   else if (sourceReady && f.source === 'app') query = query.neq('source', 'website');
+  if (commsOn && ['positive', 'neutral', 'negative'].includes(f.sentiment)) query = query.eq('sentiment', f.sentiment);
+  if (commsOn && (f.flag === 'attention' || f.attention === '1')) query = query.eq('needs_attention', true);
+  if (commsOn && (f.flag === 'awaiting' || f.awaiting === '1')) query = query.eq('awaiting_customer', true);
   if (f.read === 'unread') query = query.eq('is_read', false);
   if (f.read === 'read') query = query.eq('is_read', true);
   if (Date.parse(f.from)) query = query.gte('created_at', new Date(f.from).toISOString());
@@ -129,7 +148,8 @@ router.get('/items', handle(async (req, res) => {
 }));
 
 router.get('/items/:id', handle(async (req, res) => {
-  const item = must(await supabase.from('feedback').select(cols('id, reference, product_id, name, email, rating, category, subject, message, allow_publish, status, is_read, suspected_spam, source, resolved_at, created_at, updated_at, product:products(name, slug)')).eq('id', req.params.id).maybeSingle());
+  const AI_DETAIL = ', confirmation_attempts, confirmation_error, confirmation_sent_at, ai_summary, ai_follow_up_questions, ai_suggested_reply, attention_reason, ai_status, ai_analyzed_at';
+  const item = must(await supabase.from('feedback').select(cols(`id, reference, product_id, name, email, rating, category, subject, message, allow_publish, status, is_read, suspected_spam${commsOn ? AI_DETAIL : ''}, source, resolved_at, created_at, updated_at, product:products(name, slug)`)).eq('id', req.params.id).maybeSingle());
   if (!item) throw fail(404, 'Feedback not found.');
   const [attachments, responses, notes, testimonial] = await Promise.all([
     supabase.from('feedback_attachments').select('id, file_name, mime_type, size_bytes, created_at').eq('feedback_id', item.id).order('created_at', { ascending: true }),
@@ -139,7 +159,8 @@ router.get('/items/:id', handle(async (req, res) => {
   ]);
   // Opening feedback marks it as read
   if (!item.is_read) { await supabase.from('feedback').update({ is_read: true }).eq('id', item.id); item.is_read = true; }
-  res.json({ item, attachments: attachments.data || [], responses: responses.data || [], notes: notes.data || [], testimonial: testimonial.data || null, emailReady: !!(getResend() && fromHeader(await getSettings())) });
+  const emails = commsOn ? must(await supabase.from('feedback_emails').select('id, direction, kind, subject, body, to_email, author, ai_generated, status, error, attempts, approved_by, sent_at, created_at').eq('feedback_id', item.id).order('created_at', { ascending: true })) : [];
+  res.json({ item, attachments: attachments.data || [], responses: responses.data || [], notes: notes.data || [], emails, testimonial: testimonial.data || null, emailReady: !!(getResend() && fromHeader(await getSettings())), comms: commsOn, aiReady: commsOn && aiConfigured() });
 }));
 
 router.patch('/items/:id', handle(async (req, res) => {
@@ -151,10 +172,18 @@ router.patch('/items/:id', handle(async (req, res) => {
     update.resolved_at = b.status === 'resolved' ? nowIso() : null;
   }
   if (b.is_read !== undefined) update.is_read = !!b.is_read;
+  if (update.status && commsOn && ['resolved', 'archived'].includes(update.status)) { update.awaiting_customer = false; update.needs_attention = false; }
   const data = must(await supabase.from('feedback').update(update).eq('id', req.params.id).select('id, reference, status, is_read'));
   if (!data.length) throw fail(404, 'Feedback not found.');
-  if (update.status) logActivity(req.session.user, 'feedback_status_changed', `${data[0].reference} marked ${update.status.replace('_', ' ')}`);
-  res.json({ item: data[0] });
+  let statusEmail = null;
+  if (update.status) {
+    logActivity(req.session.user, 'feedback_status_changed', `${data[0].reference} marked ${update.status.replace('_', ' ')}`);
+    if (b.notify !== false) {
+      const full = must(await supabase.from('feedback').select('id, reference, name, email, subject, product:products(name)').eq('id', req.params.id).maybeSingle());
+      try { statusEmail = await comms.sendStatusEmail(full, update.status, req.session.user.username); } catch (err) { errorLog.record('feedback-email', err.message); }
+    }
+  }
+  res.json({ item: data[0], statusEmail: statusEmail && { status: statusEmail.status, error: statusEmail.error } });
 }));
 
 router.delete('/items/:id', requireRole('admin'), handle(async (req, res) => {

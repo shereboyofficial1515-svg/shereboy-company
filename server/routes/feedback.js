@@ -13,6 +13,7 @@ const { normalizeEmail } = require('../mail/subscribers');
 const { clientIp } = require('../clientIp');
 const { CATEGORIES, SLUG_RE, MIGRATION, testimonialName } = require('../feedbackShared');
 const { notifyNewFeedback } = require('../email');
+const { afterSubmit } = require('../feedbackComms');
 const { createVerifier } = require('../webhookAuth');
 const errorLog = require('../errorLog');
 
@@ -74,7 +75,7 @@ router.post('/', submitLimiter, (req, res, next) => receiveFiles(req, res, (err)
   const subject = sanitizeString(b.subject, 150);
   const message = sanitizeString(b.message, 5000);
   const name = sanitizeString(b.name, 100);
-  const email = b.email ? normalizeEmail(b.email) : null;
+  const email = normalizeEmail(b.email || '');
   const allowPublish = b.allow_publish === 'true' || b.allow_publish === true;
 
   const problems = [];
@@ -83,7 +84,9 @@ router.post('/', submitLimiter, (req, res, next) => receiveFiles(req, res, (err)
   if (!CATEGORIES[category]) problems.push('Choose a feedback category.');
   if (subject.length < 3) problems.push('Add a short subject.');
   if (message.length < 10) problems.push('Please describe your feedback in at least 10 characters.');
-  if (b.email && !email) problems.push('The email address is not valid. You can also leave it empty.');
+  if (name.length < 2) problems.push('Enter your full name.');
+  // Required, so the team can confirm receipt and contact the customer about it
+  if (!email) problems.push(b.email ? 'Enter a valid email address, for example name@example.com.' : 'Enter your email address.');
   if (problems.length) return res.status(400).json({ error: problems[0], errors: problems });
 
   for (const f of files) {
@@ -140,7 +143,9 @@ router.post('/', submitLimiter, (req, res, next) => receiveFiles(req, res, (err)
       await supabase.from('testimonials').insert({ feedback_id: id, product_id: product.id, status: 'pending', display_name: testimonialName(name, product.name), quote: message, rating });
     }
     notifyNewFeedback({ reference, product: product.name, rating, category: CATEGORIES[category], subject }).catch(() => {});
+    // Saved: the customer gets their answer now; confirmation email and AI run afterwards
     res.status(201).json({ success: true, reference });
+    afterSubmit(id);
   } catch (err) {
     errorLog.record('feedback', err.message);
     console.error('[feedback] submission failed:', err.message);
@@ -185,8 +190,9 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
     const subject = message.replace(/\s+/g, ' ').slice(0, 80) + (message.length > 80 ? '…' : '');
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const reference = newReference();
+      const id = crypto.randomUUID();
       const { error } = await supabase.from('feedback').insert({
-        reference, product_id: product.id, rating, category, subject, message,
+        id, reference, product_id: product.id, rating, category, subject, message,
         name: sanitizeString(b.name, 100) || null, email: b.email ? normalizeEmail(b.email) : null,
         allow_publish: false, status: 'new', is_read: false, suspected_spam: false,
         source, external_id: externalId, submitted_at: submittedAt,
@@ -194,7 +200,8 @@ router.post('/ingest', ingestLimiter, async (req, res) => {
       });
       if (!error) {
         notifyNewFeedback({ reference, product: product.name, rating, category: CATEGORIES[category], subject }).catch(() => {});
-        return res.status(201).json({ success: true, reference });
+        res.status(201).json({ success: true, reference });
+        return afterSubmit(id);
       }
       if (error.code !== '23505') throw error;
       // Another forward of the same item won the race: that one stands
