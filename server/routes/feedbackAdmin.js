@@ -19,6 +19,18 @@ const nowIso = () => new Date().toISOString();
 const PAGE = 1000;
 
 router.use(requireAuth);
+
+// The "source" column arrives with the 2026-11-08 migration. Until it has been run,
+// queries leave it out, so the dashboard keeps working before and after the update.
+let sourceReady = false;
+router.use(async (req, res, next) => {
+  if (!sourceReady) {
+    const { error } = await supabase.from('feedback').select(cols('source')).limit(1);
+    sourceReady = !error;
+  }
+  next();
+});
+const cols = (list) => (sourceReady ? list : list.replace(/,\s*source\b/g, ''));
 router.use((req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
 router.param('id', (req, res, next, id) => (UUID_RE.test(id) ? next() : res.status(404).json({ error: 'Not found.' })));
 
@@ -34,7 +46,7 @@ const must = ({ data, error }) => { if (error) throw error; return data; };
 const fail = (status, message) => Object.assign(new Error(message), { status });
 
 /** Every feedback row (summary columns), for statistics computed from real records. */
-async function allFeedback(columns = 'id, product_id, rating, category, status, is_read, suspected_spam, subject, created_at') {
+async function allFeedback(columns = cols('id, product_id, rating, category, status, is_read, suspected_spam, subject, source, created_at')) {
   const rows = [];
   for (let from = 0; ; from += PAGE) {
     const data = must(await supabase.from('feedback').select(columns).order('created_at', { ascending: true }).range(from, from + PAGE - 1));
@@ -55,7 +67,9 @@ function lastMonths(n) {
   }
   return out;
 }
-const avg = (list) => (list.length ? Math.round((list.reduce((a, b) => a + b, 0) / list.length) * 10) / 10 : null);
+// Feedback sent from inside an app may have no rating: averages only use real ratings
+const avg = (values) => { const list = values.filter(Number.isFinite); return list.length ? Math.round((list.reduce((a, b) => a + b, 0) / list.length) * 10) / 10 : null; };
+const rated = (list) => list.filter(r => Number.isFinite(r.rating)).length;
 
 // ---------- Overview ----------
 router.get('/overview', handle(async (req, res) => {
@@ -79,7 +93,10 @@ router.get('/overview', handle(async (req, res) => {
     months,
     ratings: [1, 2, 3, 4, 5].map(n => ({ rating: n, count: rows.filter(r => r.rating === n).length })),
     categories: Object.entries(CATEGORIES).map(([key, label]) => ({ key, label, count: rows.filter(r => r.category === key).length })),
-    byProduct
+    byProduct,
+    unrated: rows.filter(r => !Number.isFinite(r.rating)).length,
+    sources: Object.entries(rows.reduce((acc, r) => { acc[r.source || 'website'] = (acc[r.source || 'website'] || 0) + 1; return acc; }, {})).map(([source, count]) => ({ source, count })),
+    updatedAt: new Date().toISOString()
   });
 }));
 
@@ -91,6 +108,8 @@ function applyFilters(q, f) {
   if (/^[1-5]$/.test(f.rating || '')) query = query.eq('rating', Number(f.rating));
   if (STATUSES.includes(f.status)) query = query.eq('status', f.status);
   else if (f.status !== 'all') query = query.neq('status', 'archived');
+  if (sourceReady && f.source === 'website') query = query.eq('source', 'website');
+  else if (sourceReady && f.source === 'app') query = query.neq('source', 'website');
   if (f.read === 'unread') query = query.eq('is_read', false);
   if (f.read === 'read') query = query.eq('is_read', true);
   if (Date.parse(f.from)) query = query.gte('created_at', new Date(f.from).toISOString());
@@ -103,14 +122,14 @@ function applyFilters(q, f) {
 router.get('/items', handle(async (req, res) => {
   const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
   const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
-  const { data, error, count } = await applyFilters(supabase.from('feedback').select('id, reference, product_id, name, email, rating, category, subject, status, is_read, suspected_spam, allow_publish, created_at, product:products(name)', { count: 'exact' }), req.query)
+  const { data, error, count } = await applyFilters(supabase.from('feedback').select(cols('id, reference, product_id, name, email, rating, category, subject, status, is_read, suspected_spam, allow_publish, source, created_at, product:products(name)'), { count: 'exact' }), req.query)
     .order('created_at', { ascending: false }).range((page - 1) * limit, page * limit - 1);
   if (error) throw error;
   res.json({ items: data || [], total: count || 0, page, limit });
 }));
 
 router.get('/items/:id', handle(async (req, res) => {
-  const item = must(await supabase.from('feedback').select('id, reference, product_id, name, email, rating, category, subject, message, allow_publish, status, is_read, suspected_spam, resolved_at, created_at, updated_at, product:products(name, slug)').eq('id', req.params.id).maybeSingle());
+  const item = must(await supabase.from('feedback').select(cols('id, reference, product_id, name, email, rating, category, subject, message, allow_publish, status, is_read, suspected_spam, source, resolved_at, created_at, updated_at, product:products(name, slug)')).eq('id', req.params.id).maybeSingle());
   if (!item) throw fail(404, 'Feedback not found.');
   const [attachments, responses, notes, testimonial] = await Promise.all([
     supabase.from('feedback_attachments').select('id, file_name, mime_type, size_bytes, created_at').eq('feedback_id', item.id).order('created_at', { ascending: true }),
@@ -205,15 +224,15 @@ router.post('/items/:id/responses', handle(async (req, res) => {
 router.get('/export.csv', requireRole('admin'), handle(async (req, res) => {
   const rows = [];
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await applyFilters(supabase.from('feedback').select('reference, created_at, product:products(name), rating, category, status, subject, message, name, email, allow_publish'), { ...req.query, status: req.query.status || 'all' })
+    const { data, error } = await applyFilters(supabase.from('feedback').select(cols('reference, created_at, product:products(name), source, rating, category, status, subject, message, name, email, allow_publish')), { ...req.query, status: req.query.status || 'all' })
       .order('created_at', { ascending: false }).range(from, from + PAGE - 1);
     if (error) throw error;
     rows.push(...data);
     if (data.length < PAGE) break;
   }
   const cell = (v) => `"${String(v ?? '').replace(/^[=+\-@\t\r]/, "'$&").replace(/"/g, '""')}"`;
-  const head = ['Reference', 'Date', 'Product', 'Rating', 'Category', 'Status', 'Subject', 'Feedback', 'Name', 'Email', 'May publish'];
-  const lines = rows.map(r => [r.reference, r.created_at, r.product ? r.product.name : '', r.rating, CATEGORIES[r.category] || r.category, r.status, r.subject, r.message, r.name, r.email, r.allow_publish ? 'yes' : 'no'].map(cell).join(','));
+  const head = ['Reference', 'Date', 'Product', 'Source', 'Rating', 'Category', 'Status', 'Subject', 'Feedback', 'Name', 'Email', 'May publish'];
+  const lines = rows.map(r => [r.reference, r.created_at, r.product ? r.product.name : '', r.source || 'website', r.rating ?? '', CATEGORIES[r.category] || r.category, r.status, r.subject, r.message, r.name, r.email, r.allow_publish ? 'yes' : 'no'].map(cell).join(','));
   logActivity(req.session.user, 'feedback_exported', `Exported ${rows.length} feedback record(s)`);
   res.set('Content-Type', 'text/csv; charset=utf-8');
   res.set('Content-Disposition', `attachment; filename="feedback-${new Date().toISOString().slice(0, 10)}.csv"`);
@@ -223,7 +242,7 @@ router.get('/export.csv', requireRole('admin'), handle(async (req, res) => {
 
 // ---------- Products ----------
 router.get('/products', handle(async (req, res) => {
-  const [products, rows] = await Promise.all([allProducts(), allFeedback('id, product_id, rating, category')]);
+  const [products, rows] = await Promise.all([allProducts(), allFeedback(cols('id, product_id, rating, category, source'))]);
   res.json({
     products: products.map(p => {
       const list = rows.filter(r => r.product_id === p.id);
@@ -322,13 +341,13 @@ router.get('/analytics', handle(async (req, res) => {
   const [rows, products] = await Promise.all([allFeedback(), allProducts()]);
   const stats = products.map(p => {
     const list = rows.filter(r => r.product_id === p.id);
-    return { name: p.name, count: list.length, avgRating: avg(list.map(r => r.rating)), complaints: list.filter(r => r.category === 'complaint').length, bugs: list.filter(r => r.category === 'bug').length, features: list.filter(r => r.category === 'feature').length };
+    return { name: p.name, count: list.length, ratedCount: rated(list), avgRating: avg(list.map(r => r.rating)), complaints: list.filter(r => r.category === 'complaint').length, bugs: list.filter(r => r.category === 'bug').length, features: list.filter(r => r.category === 'feature').length };
   });
   const pick = (key, filter = () => true) => stats.filter(s => s[key] && filter(s)).sort((a, b) => b[key] - a[key])[0] || null;
   res.json({
     mostReviewed: pick('count'),
     // Small samples mislead, so a product needs at least 3 ratings to rank
-    highestRated: pick('avgRating', s => s.count >= 3),
+    highestRated: pick('avgRating', s => s.ratedCount >= 3),
     mostComplaints: pick('complaints'),
     commonProblems: topWords(rows.filter(r => r.category === 'bug' || r.category === 'complaint').map(r => r.subject)),
     requestedFeatures: topWords(rows.filter(r => r.category === 'feature' || r.category === 'suggestion').map(r => r.subject)),

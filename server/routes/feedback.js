@@ -13,6 +13,7 @@ const { normalizeEmail } = require('../mail/subscribers');
 const { clientIp } = require('../clientIp');
 const { CATEGORIES, SLUG_RE, MIGRATION, testimonialName } = require('../feedbackShared');
 const { notifyNewFeedback } = require('../email');
+const { createVerifier } = require('../webhookAuth');
 const errorLog = require('../errorLog');
 
 const MAX_FILES = 3;
@@ -144,6 +145,69 @@ router.post('/', submitLimiter, (req, res, next) => receiveFiles(req, res, (err)
     errorLog.record('feedback', err.message);
     console.error('[feedback] submission failed:', err.message);
     res.status(500).json({ error: 'We could not save your feedback just now. Please try again.' });
+  }
+});
+
+// ---------- Feedback forwarded from inside the products ----------
+// POST /api/feedback/ingest — server to server only. Each product's backend signs
+// HMAC-SHA256 over "<timestamp>.<raw body>" with FEEDBACK_INGEST_SECRET, so nobody
+// else can post here. The product's own item id makes every forward idempotent.
+const verifyIngest = createVerifier({ secretEnv: 'FEEDBACK_INGEST_SECRET', timestampHeader: 'x-feedback-timestamp', signatureHeader: 'x-feedback-signature' });
+const APP_TYPES = { feature_request: 'feature', bug_report: 'bug', complaint: 'complaint', general: 'general', suggestion: 'suggestion', ux: 'ux', other: 'other' };
+const SOURCE_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const ingestLimiter = rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests.' } });
+
+router.post('/ingest', ingestLimiter, async (req, res) => {
+  const check = verifyIngest(req);
+  if (!check.ok) return res.status(check.status).json({ error: check.error });
+
+  const b = req.body || {};
+  const slug = String(b.product || '');
+  const source = String(b.source || '');
+  const externalId = String(b.externalId || '').slice(0, 100);
+  const category = APP_TYPES[b.type];
+  const message = sanitizeString(b.message, 5000);
+  const rating = b.rating === undefined || b.rating === null ? null : Number(b.rating);
+  const submittedAt = Date.parse(b.submittedAt) ? new Date(b.submittedAt).toISOString() : null;
+  if (!SLUG_RE.test(slug) || !SOURCE_RE.test(source) || !externalId || !category || message.length < 2 || (rating !== null && !(Number.isInteger(rating) && rating >= 1 && rating <= 5))) {
+    return res.status(400).json({ error: 'Invalid feedback payload.' });
+  }
+
+  try {
+    const { data: product, error: pErr } = await supabase.from('products').select('id, name').eq('slug', slug).maybeSingle();
+    if (pErr) throw pErr;
+    if (!product) return res.status(404).json({ error: `Unknown product "${slug}". Add it in the dashboard first.` });
+
+    const { data: existing, error: eErr } = await supabase.from('feedback').select('reference').eq('product_id', product.id).eq('source', source).eq('external_id', externalId).maybeSingle();
+    if (eErr) throw eErr;
+    if (existing) return res.json({ success: true, reference: existing.reference, duplicate: true });
+
+    const subject = message.replace(/\s+/g, ' ').slice(0, 80) + (message.length > 80 ? '…' : '');
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const reference = newReference();
+      const { error } = await supabase.from('feedback').insert({
+        reference, product_id: product.id, rating, category, subject, message,
+        name: sanitizeString(b.name, 100) || null, email: b.email ? normalizeEmail(b.email) : null,
+        allow_publish: false, status: 'new', is_read: false, suspected_spam: false,
+        source, external_id: externalId, submitted_at: submittedAt,
+        ...(submittedAt ? { created_at: submittedAt } : {})
+      });
+      if (!error) {
+        notifyNewFeedback({ reference, product: product.name, rating, category: CATEGORIES[category], subject }).catch(() => {});
+        return res.status(201).json({ success: true, reference });
+      }
+      if (error.code !== '23505') throw error;
+      // Another forward of the same item won the race: that one stands
+      const { data: winner } = await supabase.from('feedback').select('reference').eq('product_id', product.id).eq('source', source).eq('external_id', externalId).maybeSingle();
+      if (winner) return res.json({ success: true, reference: winner.reference, duplicate: true });
+    }
+    throw new Error('Could not allocate a reference');
+  } catch (err) {
+    if (isMissingTableError(err) || /column .*(source|external_id)/i.test(err.message || '')) {
+      return res.status(503).json({ error: 'The feedback database update for app feedback has not been run yet.' });
+    }
+    errorLog.record('feedback', `Ingest: ${err.message}`);
+    res.status(500).json({ error: 'Could not store the feedback.' });
   }
 });
 

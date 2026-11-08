@@ -15,7 +15,8 @@
   const STATUSES = { new: 'New', under_review: 'Under Review', in_progress: 'In Progress', responded: 'Responded', resolved: 'Resolved', archived: 'Archived' };
   const STATUS_PILL = { new: 'blue', under_review: 'amber', in_progress: 'amber', responded: 'green', resolved: 'green', archived: 'grey', pending: 'amber', approved: 'green', rejected: 'red', unpublished: 'grey' };
   const pill = (s, label) => `<span class="pill pill--${STATUS_PILL[s] || 'grey'}">${esc(label || STATUSES[s] || s)}</span>`;
-  const stars = (n) => `<span class="fb-stars-text" role="img" aria-label="${n} out of 5">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span>`;
+  const stars = (n) => (Number.isInteger(n) ? `<span class="fb-stars-text" role="img" aria-label="${n} out of 5">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span>` : '<span class="em-muted">No rating</span>');
+  const sourceLabel = (s) => (!s || s === 'website' ? 'Website' : `${s.replace(/-app$/, '').replace(/-/g, ' ').toUpperCase()} app`);
   const skeleton = '<div class="card"><span class="skeleton"></span><br><span class="skeleton"></span><br><span class="skeleton"></span></div>';
   const state = { tab: 'overview', filters: { page: 1 }, products: [] };
 
@@ -64,8 +65,9 @@
     root.innerHTML = `
       <div class="em-stats">
         ${stat('Total feedback', d.total)}${stat('New', d.new, `${d.unread} unread`)}${stat('Pending', d.pending, 'New, under review or in progress')}${stat('Resolved', d.resolved)}
-        ${stat('Average rating', d.avgRating === null ? '—' : `${d.avgRating} / 5`)}${stat('Products with feedback', d.productsWithFeedback)}
+        ${stat('Average rating', d.avgRating === null ? '—' : `${d.avgRating} / 5`, d.unrated ? `${d.unrated} without a rating (sent from an app)` : '')}${stat('Products with feedback', d.productsWithFeedback)}
       </div>
+      <p class="em-muted" data-fb-updated>Updated ${new Date(d.updatedAt).toLocaleTimeString('en-GB')}. New feedback appears automatically.${d.sources.length > 1 ? ` Sources: ${d.sources.map(s => `${sourceLabel(s.source)} ${s.count}`).join(', ')}.` : ''}</p>
       <div class="fb-grid">
         ${card('Feedback received', 'Last 12 months', d.total ? columns(d.months.map(m => ({ label: m.label, value: m.count })), 'received') : empty)}
         ${card('Ratings', 'How many of each star rating', d.total ? hbars(d.ratings.slice().reverse().map(r => ({ label: `${r.rating} star${r.rating > 1 ? 's' : ''}`, value: r.count }))) : empty)}
@@ -86,13 +88,14 @@
         <select id="fbFCategory" aria-label="Category">${opt('', 'All categories', f.category)}${Object.entries(CATEGORIES).map(([k, l]) => opt(k, l, f.category)).join('')}</select>
         <select id="fbFRating" aria-label="Rating">${opt('', 'Any rating', f.rating)}${[5, 4, 3, 2, 1].map(n => opt(n, `${n} star${n > 1 ? 's' : ''}`, f.rating)).join('')}</select>
         <select id="fbFStatus" aria-label="Status">${opt('', 'Open (not archived)', f.status)}${opt('all', 'Everything', f.status)}${Object.entries(STATUSES).map(([k, l]) => opt(k, l, f.status)).join('')}</select>
+        <select id="fbFSource" aria-label="Source">${opt('', 'Website and apps', f.source)}${opt('website', 'Website form', f.source)}${opt('app', 'Sent from an app', f.source)}</select>
         <select id="fbFRead" aria-label="Read">${opt('', 'Read and unread', f.read)}${opt('unread', 'Unread only', f.read)}${opt('read', 'Read only', f.read)}</select>
         <input type="date" id="fbFFrom" aria-label="From date" value="${esc(f.from || '')}">
         <input type="date" id="fbFTo" aria-label="To date" value="${esc(f.to || '')}">
       </div>
       ${isAdmin() ? `<div class="toolbar"><a class="btn btn--ghost" id="fbExport" href="#">Export these to CSV (opens in Excel)</a></div>` : ''}
       <div class="table-card"><table class="table"><thead><tr><th>Reference</th><th>Product</th><th>Rating</th><th>Category</th><th>Subject</th><th>Status</th><th>Received</th></tr></thead><tbody id="fbRows"><tr><td colspan="7"><span class="skeleton"></span></td></tr></tbody></table><div class="pager" id="fbPager"></div></div>`;
-    const map = { fbQ: 'q', fbFProduct: 'product', fbFCategory: 'category', fbFRating: 'rating', fbFStatus: 'status', fbFRead: 'read', fbFFrom: 'from', fbFTo: 'to' };
+    const map = { fbQ: 'q', fbFProduct: 'product', fbFCategory: 'category', fbFRating: 'rating', fbFStatus: 'status', fbFRead: 'read', fbFSource: 'source', fbFFrom: 'from', fbFTo: 'to' };
     let t;
     Object.entries(map).forEach(([id, key]) => {
       const el = document.getElementById(id);
@@ -118,7 +121,7 @@
       const d = await api(`/api/feedback-admin/items?${filterQuery()}&limit=20`);
       rows.innerHTML = d.items.length ? d.items.map(x => `<tr class="em-row ${x.is_read ? '' : 'fb-unread'}" data-fb-item="${esc(x.id)}" tabindex="0">
         <td data-label="Reference"><strong>${esc(x.reference)}</strong>${x.suspected_spam ? ' <span class="pill pill--red">Possible spam</span>' : ''}</td>
-        <td data-label="Product">${esc(x.product ? x.product.name : '—')}</td>
+        <td data-label="Product">${esc(x.product ? x.product.name : '—')}${x.source && x.source !== 'website' ? ` <span class="pill pill--grey">${esc(sourceLabel(x.source))}</span>` : ''}</td>
         <td data-label="Rating">${stars(x.rating)}</td>
         <td data-label="Category">${esc(CATEGORIES[x.category] || x.category)}</td>
         <td data-label="Subject">${esc(x.subject)}</td>
@@ -145,6 +148,7 @@
       modalBody.innerHTML = `
         <dl class="sys-kv">
           <dt>Rating</dt><dd>${stars(x.rating)}</dd>
+          <dt>Sent from</dt><dd>${esc(sourceLabel(x.source))}</dd>
           <dt>Category</dt><dd>${esc(CATEGORIES[x.category] || x.category)}</dd>
           <dt>From</dt><dd>${esc(x.name || 'No name given')}${x.email ? ` · ${esc(x.email)}` : ' · no email given'}</dd>
           <dt>Received</dt><dd>${new Date(x.created_at).toLocaleString('en-GB')}</dd>
@@ -351,12 +355,36 @@
     }
   });
 
+  // ---------- Automatic updates ----------
+  // While the module is open and the browser tab is visible, the overview and the
+  // feedback list refresh every 30 seconds, so new feedback and status changes
+  // appear without reloading. A plain request: a refusal never opens the login prompt.
+  const REFRESH_MS = 30 * 1000;
+  const viewOpen = () => !document.getElementById('view-feedback').hidden && document.visibilityState === 'visible';
+  const modalOpen = () => !modal.hidden;
+  async function refreshBadge() {
+    try {
+      const r = await fetch('/api/feedback-admin/overview', { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+      if (!r.ok) return;
+      const d = await r.json();
+      const b = document.getElementById('feedbackBadge');
+      if (b) { b.textContent = d.unread; b.hidden = !d.unread; }
+    } catch { /* offline: try again next time */ }
+  }
+  function refreshNow() {
+    if (document.visibilityState !== 'visible') return;
+    refreshBadge();
+    // Don't redraw underneath someone reading or typing in a feedback item
+    if (!viewOpen() || modalOpen()) return;
+    if (state.tab === 'overview') loadOverview().catch(() => {});
+    if (state.tab === 'feedback' && document.activeElement && !document.activeElement.closest('.fb-filters')) fillFeedback();
+  }
+  setInterval(refreshNow, REFRESH_MS);
+  // Coming back to the tab shows what arrived meanwhile straight away
+  document.addEventListener('visibilitychange', refreshNow);
+
   window.FeedbackCenter = { load: () => setTab(state.tab) };
   if (/^#\/feedback/.test(location.hash) && !document.getElementById('view-feedback').hidden) window.FeedbackCenter.load();
-  // The sidebar shows how much feedback is unread. A plain request, so that before
-  // sign-in a refusal is simply ignored instead of opening the login prompt.
-  fetch('/api/feedback-admin/overview', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
-    .then(r => (r.ok ? r.json() : null))
-    .then(d => { const b = document.getElementById('feedbackBadge'); if (d && b) { b.textContent = d.unread; b.hidden = !d.unread; } })
-    .catch(() => {});
+  // The sidebar shows how much feedback is unread
+  refreshBadge();
 })();
