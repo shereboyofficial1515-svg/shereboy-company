@@ -56,6 +56,8 @@ services:
         generateValue: true
       - key: EMAIL_CRON_SECRET
         generateValue: true
+      - key: FEEDBACK_INGEST_SECRET
+        sync: false
       - key: ADMIN_USERNAME
         sync: false
       - key: ADMIN_PASSWORD_HASH

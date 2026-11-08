@@ -32,18 +32,19 @@ const EMAIL_SCHEMA = {
 };
 const FEEDBACK_SCHEMA = {
   products: ['id', 'slug', 'name', 'description', 'logo_url', 'website_url', 'is_active', 'display_order', 'created_at', 'updated_at'],
-  feedback: ['id', 'reference', 'product_id', 'name', 'email', 'rating', 'category', 'subject', 'message', 'allow_publish', 'status', 'is_read', 'suspected_spam', 'submitter_hash', 'content_hash', 'resolved_at', 'created_at', 'updated_at'],
+  feedback: ['id', 'reference', 'product_id', 'name', 'email', 'rating', 'category', 'subject', 'message', 'allow_publish', 'status', 'is_read', 'suspected_spam', 'submitter_hash', 'content_hash', 'source', 'external_id', 'submitted_at', 'resolved_at', 'created_at', 'updated_at'],
   feedback_attachments: ['id', 'feedback_id', 'bucket', 'storage_path', 'file_name', 'mime_type', 'size_bytes', 'created_at', 'updated_at'],
   feedback_responses: ['id', 'feedback_id', 'message', 'admin_username', 'email_status', 'email_error', 'created_at', 'updated_at'],
   feedback_internal_notes: ['id', 'feedback_id', 'note', 'admin_username', 'created_at', 'updated_at'],
   testimonials: ['id', 'feedback_id', 'product_id', 'status', 'featured', 'display_name', 'quote', 'rating', 'approved_by', 'approved_at', 'created_at', 'updated_at']
 };
 if (MIGRATED) Object.assign(SCHEMA, EMAIL_SCHEMA, FEEDBACK_SCHEMA);
-const UNIQUE = { products: ['slug'], feedback: ['reference'], testimonials: ['feedback_id'], email_subscribers: ['email'], email_suppressions: ['email'], email_events: ['event_key'], email_campaign_recipients: ['campaign_id', 'email'], email_settings: ['id'] };
-const clash = (t, row) => UNIQUE[t] && db[t].find(r => UNIQUE[t].every(c => r[c] === row[c] && row[c] !== undefined));
+const UNIQUE = { products: ['slug'], feedback: ['reference'], feedback_external: ['product_id', 'source', 'external_id'], testimonials: ['feedback_id'], email_subscribers: ['email'], email_suppressions: ['email'], email_events: ['event_key'], email_campaign_recipients: ['campaign_id', 'email'], email_settings: ['id'] };
+const uniqueClash = (t, keys, row) => db[t].find(r => keys.every(c => r[c] === row[c] && row[c] !== undefined && row[c] !== null));
+const clash = (t, row) => (UNIQUE[t] && uniqueClash(t, UNIQUE[t], row)) || (t === 'feedback' && uniqueClash(t, UNIQUE.feedback_external, row));
 const DEFAULTS = {
   products: { is_active: true, display_order: 0 },
-  feedback: { status: 'new', is_read: false, suspected_spam: false, allow_publish: false },
+  feedback: { status: 'new', is_read: false, suspected_spam: false, allow_publish: false, source: 'website' },
   feedback_responses: { email_status: 'not_sent' },
   testimonials: { status: 'pending', featured: false },
   email_campaigns: { audience: {}, stats: {}, retry_count: 0, recipients_built: false, recipient_count: 0 },
@@ -240,7 +241,7 @@ function handleRest(req, res, t, q, body) {
     for (const it of items) for (const k of Object.keys(it)) if (!SCHEMA[t].includes(k)) return send(res, 400, { code: 'PGRST204', message: `Could not find the '${k}' column of '${t}' in the schema cache` });
     if (t === 'users' && items.some(it => db.users.some(u => u.username === it.username))) return send(res, 409, { code: '23505', message: 'duplicate key value violates unique constraint "users_username_key"' });
     const prefer = req.headers.prefer || '';
-    if (UNIQUE[t]) {
+    if (UNIQUE[t] || t === 'feedback') {
       const kept = [];
       for (const it of items) {
         const hit = clash(t, it);

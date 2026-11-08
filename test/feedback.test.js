@@ -59,7 +59,7 @@ function start(port, dbPort) {
       PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, NODE_ENV: 'production', PORT: String(port), SESSION_SECRET: 'y'.repeat(48),
       SUPABASE_URL: `http://127.0.0.1:${dbPort}`, SUPABASE_SERVICE_ROLE_KEY: 'k', SUPABASE_STORAGE_BUCKET: 'shereboy-media', SUPABASE_PRIVATE_BUCKET: 'shereboy-private',
       ADMIN_USERNAME: 'testadmin', ADMIN_PASSWORD_HASH: bcrypt.hashSync(PASSWORD, 4),
-      RESEND_API_KEY: 're_test_only', RESEND_BASE_URL: resend.url, RESEND_FROM_EMAIL: 'SHEREBOY TECH LTD <support@shereboytechltd.site>',
+      RESEND_API_KEY: 're_test_only', RESEND_BASE_URL: resend.url, RESEND_FROM_EMAIL: 'SHEREBOY TECH LTD <support@shereboytechltd.site>', FEEDBACK_INGEST_SECRET: 'test-ingest-secret',
       BLOG_API_BASE_URL: 'http://127.0.0.1:9', AFFILIATE_API_BASE_URL: 'http://127.0.0.1:9', SERVICE_WAKE_WINDOW_SECONDS: '1'
     },
     stdio: 'ignore'
@@ -350,4 +350,61 @@ test('before the database update, the page says feedback is not open and the adm
   assert.equal(p.status, 503);
   assert.equal((await fetch(`${base2}/feedback`)).status, 200);
   assert.equal((await fetch(`${base2}/api/feedback/testimonials`).then(r => r.json())).testimonials.length, 0);
+});
+
+
+// ---------- Feedback forwarded from inside a product (e.g. JOB RUSH Help & Feedback) ----------
+function forward(body, { secret = 'test-ingest-secret', timestamp = Math.floor(Date.now() / 1000), tamper = false } = {}) {
+  const raw = JSON.stringify(body);
+  const signature = crypto.createHmac('sha256', secret).update(`${timestamp}.${raw}`).digest('hex');
+  return fetch(`${BASE}/api/feedback/ingest`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Feedback-Timestamp': String(timestamp), 'X-Feedback-Signature': `sha256=${signature}` }, body: tamper ? raw.replace('Slow', 'Fast') : raw })
+    .then(async r => ({ status: r.status, data: await r.json() }));
+}
+const appItem = (x = {}) => ({ product: 'job-rush', source: 'job-rush-app', externalId: crypto.randomUUID(), type: 'bug_report', message: 'Slow loading on the jobs list in the app.', submittedAt: '2026-10-01T09:00:00.000Z', ...x });
+
+test('app feedback: only correctly signed forwards are accepted', async () => {
+  assert.equal((await fetch(`${BASE}/api/feedback/ingest`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(appItem()) })).status, 401);
+  assert.equal((await forward(appItem(), { secret: 'wrong-secret' })).status, 401);
+  assert.equal((await forward(appItem(), { tamper: true })).status, 401);
+  assert.equal((await forward(appItem(), { timestamp: Math.floor(Date.now() / 1000) - 3600 })).status, 401, 'old signatures are refused');
+  assert.equal((await forward(appItem({ product: 'no-such-product' }))).status, 404);
+  assert.equal((await forward(appItem({ type: 'praise' }))).status, 400);
+  assert.equal((await forward(appItem({ rating: 9 }))).status, 400);
+});
+
+test('app feedback: stored once, without an invented rating, and shown in the dashboard', async () => {
+  const item = appItem();
+  const first = await forward(item);
+  assert.equal(first.status, 201, JSON.stringify(first.data));
+  const again = await forward({ ...item }, { timestamp: Math.floor(Date.now() / 1000) + 1 }); // a later retry is signed afresh
+  assert.equal(again.data.duplicate, true, 'a retry or backfill is not stored twice');
+  assert.equal(again.data.reference, first.data.reference);
+  const rows = (await dbRows('feedback')).filter(r => r.external_id === item.externalId);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].rating, null);
+  assert.equal(rows[0].category, 'bug');
+  assert.equal(rows[0].source, 'job-rush-app');
+  assert.equal(rows[0].created_at, item.submittedAt, 'keeps the time it was really sent');
+  assert.equal(rows[0].allow_publish, false, 'never becomes a testimonial');
+
+  const list = (await admin.req('/api/feedback-admin/items?source=app')).data;
+  assert.ok(list.items.length >= 1 && list.items.every(i => i.source !== 'website'));
+  assert.ok((await admin.req('/api/feedback-admin/items?source=website')).data.items.every(i => i.source === 'website'));
+  const detail = (await admin.req(`/api/feedback-admin/items/${rows[0].id}`)).data.item;
+  assert.equal(detail.message, item.message);
+  assert.equal(detail.product.name, 'JOB RUSH');
+});
+
+test('app feedback without ratings leaves the averages honest', async () => {
+  const all = await dbRows('feedback');
+  const ratings = all.map(r => r.rating).filter(Number.isFinite);
+  const expected = Math.round(ratings.reduce((a, b) => a + b, 0) / ratings.length * 10) / 10;
+  const o = (await admin.req('/api/feedback-admin/overview')).data;
+  assert.equal(o.total, all.length);
+  assert.equal(o.avgRating, expected);
+  assert.equal(o.unrated, all.filter(r => r.rating === null).length);
+  assert.ok(o.sources.some(x => x.source === 'job-rush-app'));
+  assert.equal(o.ratings.reduce((n, r) => n + r.count, 0), ratings.length);
+  const csv = (await admin.req('/api/feedback-admin/export.csv')).text;
+  assert.ok(csv.includes('job-rush-app'));
 });
