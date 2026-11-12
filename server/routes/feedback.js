@@ -13,7 +13,7 @@ const { normalizeEmail } = require('../mail/subscribers');
 const { clientIp } = require('../clientIp');
 const { CATEGORIES, SLUG_RE, MIGRATION, testimonialName } = require('../feedbackShared');
 const { notifyNewFeedback } = require('../email');
-const { afterSubmit } = require('../feedbackComms');
+const { afterSubmit, commsReady } = require('../feedbackComms');
 const { createVerifier } = require('../webhookAuth');
 const errorLog = require('../errorLog');
 
@@ -66,8 +66,10 @@ router.post('/', submitLimiter, (req, res, next) => receiveFiles(req, res, (err)
 }), async (req, res) => {
   const b = req.body || {};
   const files = req.files || [];
-  // Bots fill the hidden field: they get a normal-looking reply, and nothing is saved
-  if (b.website) return res.status(201).json({ success: true, reference: newReference() });
+  // The hidden field catches bots, but browser autofill and password managers can fill it
+  // for real people too. So a filled-in trap never throws feedback away: it is saved,
+  // flagged as possible spam, and gets no confirmation email or AI processing.
+  const trapped = String(b.website || '').trim() !== '';
 
   const slug = String(b.product || '');
   const rating = Number(b.rating);
@@ -87,7 +89,11 @@ router.post('/', submitLimiter, (req, res, next) => receiveFiles(req, res, (err)
   if (name.length < 2) problems.push('Enter your full name.');
   // Required, so the team can confirm receipt and contact the customer about it
   if (!email) problems.push(b.email ? 'Enter a valid email address, for example name@example.com.' : 'Enter your email address.');
-  if (problems.length) return res.status(400).json({ error: problems[0], errors: problems });
+  if (problems.length) {
+    // Nothing usable to save from a bot; it gets the same reply as everyone else
+    if (trapped) return res.status(201).json({ success: true, reference: newReference() });
+    return res.status(400).json({ error: problems[0], errors: problems });
+  }
 
   for (const f of files) {
     if (!TYPES[f.mimetype].sig(f.buffer)) return res.status(400).json({ error: `"${safeDisplayName(f.originalname)}" doesn't look like a genuine image or PDF.` });
@@ -129,7 +135,7 @@ router.post('/', submitLimiter, (req, res, next) => receiveFiles(req, res, (err)
       reference = newReference();
       const { error } = await supabase.from('feedback').insert({
         id, reference, product_id: product.id, name: name || null, email, rating, category, subject, message,
-        allow_publish: allowPublish, status: 'new', is_read: false, suspected_spam: links > 3, submitter_hash: submitterHash, content_hash: contentHash
+        allow_publish: allowPublish && !trapped, status: 'new', is_read: false, suspected_spam: trapped || links > 3, submitter_hash: submitterHash, content_hash: contentHash
       });
       if (!error) break;
       if (error.code !== '23505' || attempt === 2) {
@@ -139,8 +145,15 @@ router.post('/', submitLimiter, (req, res, next) => receiveFiles(req, res, (err)
     }
     if (stored.length) await supabase.from('feedback_attachments').insert(stored);
     // A candidate only: nothing is published until an administrator approves it
-    if (allowPublish) {
+    if (allowPublish && !trapped) {
       await supabase.from('testimonials').insert({ feedback_id: id, product_id: product.id, status: 'pending', display_name: testimonialName(name, product.name), quote: message, rating });
+    }
+    if (trapped) {
+      // No AI or email for it, so the dashboard does not wait for an analysis
+      if (await commsReady()) await supabase.from('feedback').update({ ai_status: 'off' }).eq('id', id);
+      errorLog.record('feedback', `${reference} saved as possible spam: the hidden anti-spam field was filled in`);
+      console.warn(`[feedback] ${reference} saved as possible spam (hidden field filled in)`);
+      return res.status(201).json({ success: true, reference });
     }
     notifyNewFeedback({ reference, product: product.name, rating, category: CATEGORIES[category], subject }).catch(() => {});
     // Saved: the customer gets their answer now; confirmation email and AI run afterwards

@@ -227,7 +227,7 @@
           ${d.comms && x.email ? `<dt>Confirmation email</dt><dd>${tag(CONFIRM, x.confirmation_status)}${x.confirmation_error ? ` ${esc(x.confirmation_error)}` : ''}${confirmRetry ? ` <button type="button" class="btn btn--ghost btn--sm" data-fb-act="confirm-retry" data-id="${x.id}">${x.confirmation_status === 'failed' ? 'Retry' : 'Send now'}</button>` : ''}</dd>` : ''}
           <dt>Received</dt><dd>${new Date(x.created_at).toLocaleString('en-GB')}</dd>
           <dt>Publishing</dt><dd>${x.allow_publish ? `Allowed as a testimonial${d.testimonial ? ` (${esc(d.testimonial.status)})` : ''}` : 'Not allowed'}</dd>
-          ${x.suspected_spam ? '<dt>Note</dt><dd>Flagged as possible spam (many links).</dd>' : ''}
+          ${x.suspected_spam ? '<dt>Note</dt><dd>Flagged as possible spam: it contains many links, or a hidden anti-spam field was filled in (browser autofill can do that for real people). It was kept so nothing genuine is lost; no confirmation email or AI reply was sent. Delete it if it is spam.</dd>' : ''}
         </dl>
         <h3 class="em-subhead">${esc(x.subject)}</h3>
         <div class="fb-message">${esc(x.message)}</div>
