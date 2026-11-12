@@ -55,7 +55,7 @@ function staff() {
 let admin; let editor;
 async function settle() {
   for (let i = 0; i < 100; i += 1) {
-    const busy = (await dbRows('feedback')).some(r => r.email && (['not_required', 'pending'].includes(r.confirmation_status) || r.ai_status === 'pending'));
+    const busy = (await dbRows('feedback')).some(r => r.email && !r.suspected_spam && (['not_required', 'pending'].includes(r.confirmation_status) || r.ai_status === 'pending'));
     if (!busy) return;
     await sleep(50);
   }
@@ -134,15 +134,33 @@ test('submission: validated, saved with a reference, linked to its product', asy
   assert.ok(!JSON.stringify(r.data).includes('ada@example.com'), 'nothing private comes back');
 });
 
-test('a name and a valid email are required, and the hidden trap field fakes success for bots', async () => {
+test('a name and a valid email are required', async () => {
   const none = await submit({ name: '', email: '' });
   assert.equal(none.status, 400);
   assert.ok(none.data.errors.includes('Enter your email address.') && none.data.errors.includes('Enter your full name.'));
   assert.match((await submit({ email: 'ada@@example' })).data.error, /valid email/);
+});
+
+test('the hidden trap field never loses real feedback: it is kept, flagged, and gets no email', async () => {
   const before = (await dbRows('feedback')).length;
-  const bot = await submit({ website: 'http://spam.example' });
-  assert.equal(bot.status, 201);
+  // Garbage from a bot: nothing worth keeping, and the bot cannot tell
+  const junk = await submit({ website: 'http://spam.example', subject: 'x', message: 'y' });
+  assert.equal(junk.status, 201);
   assert.equal((await dbRows('feedback')).length, before);
+  // A real person whose browser autofilled the hidden field
+  await settle();
+  const sent = resend.state.emails.length;
+  const real = await submit({ website: 'https://my-site.example', name: 'Autofill User', email: 'autofill@example.com', subject: 'Autofilled form', message: 'My browser filled in every field for me.', allow_publish: 'true' });
+  assert.equal(real.status, 201);
+  await sleep(300);
+  const row = (await dbRows('feedback')).find(r => r.reference === real.data.reference);
+  assert.ok(row, 'saved');
+  assert.equal(row.suspected_spam, true);
+  assert.equal(row.allow_publish, false, 'never published');
+  assert.equal(resend.state.emails.length, sent, 'no confirmation email to an address a bot may have typed');
+  const list = (await admin.req('/api/feedback-admin/items?q=Autofilled')).data.items;
+  assert.equal(list.length, 1, 'shown in the dashboard');
+  assert.equal(list[0].suspected_spam, true);
 });
 
 test('a double submit returns the first reference instead of a duplicate', async () => {
