@@ -1631,7 +1631,7 @@
         if (!res.ok) throw new Error(data.error || 'We could not send your feedback. Please try again.');
         $('#fbReference').textContent = data.reference;
         // Shown only once the server confirmed the feedback is saved
-        $('#fbEmailNote').textContent = `A confirmation email with this reference is on its way to ${$('#fbEmail').value.trim()}. If it does not arrive in a few minutes, please check your spam folder.`;
+        $('#fbEmailNote').textContent = `A confirmation email with this reference is on its way to ${$('#fbEmail').value.trim()}. If it does not arrive in a few minutes, please check your spam folder.${data.attachmentsSaved === false ? ' Your feedback was saved, but your files could not be uploaded just now. Please reply to the confirmation email with them attached.' : ''}`;
         form.hidden = true;
         $('#feedbackDone').hidden = false;
         $('#feedbackDone').focus();

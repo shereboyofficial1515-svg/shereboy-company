@@ -16,8 +16,9 @@ const crypto = require('crypto');
 const supabase = require('./database');
 const { isMissingTableError } = require('./dbCompat');
 
-const PUBLIC_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || 'shereboy-media';
-const PRIVATE_BUCKET = process.env.SUPABASE_PRIVATE_BUCKET || 'shereboy-private';
+// Trimmed: a space or line break pasted into the hosting dashboard would name a bucket that doesn't exist
+const PUBLIC_BUCKET = (process.env.SUPABASE_STORAGE_BUCKET || '').trim() || 'shereboy-media';
+const PRIVATE_BUCKET = (process.env.SUPABASE_PRIVATE_BUCKET || '').trim() || 'shereboy-private';
 
 const TYPES = {
   'image/jpeg': { ext: 'jpg', max: 5 * 1024 * 1024, sig: (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
