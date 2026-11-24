@@ -62,14 +62,14 @@ async function settle() {
   throw new Error('background email/AI work did not finish');
 }
 
-function start(port, dbPort) {
+function start(port, dbPort, extra = {}) {
   procs.push(spawn(process.execPath, [path.join(__dirname, '..', 'server', 'server.js')], {
     env: {
       PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, NODE_ENV: 'production', PORT: String(port), SESSION_SECRET: 'y'.repeat(48),
-      SUPABASE_URL: `http://127.0.0.1:${dbPort}`, SUPABASE_SERVICE_ROLE_KEY: 'k', SUPABASE_STORAGE_BUCKET: 'shereboy-media', SUPABASE_PRIVATE_BUCKET: 'shereboy-private',
+      SUPABASE_URL: `http://127.0.0.1:${dbPort}`, SUPABASE_SERVICE_ROLE_KEY: 'k', SUPABASE_STORAGE_BUCKET: 'shereboy-media', SUPABASE_PRIVATE_BUCKET: 'shereboy-private ',
       ADMIN_USERNAME: 'testadmin', ADMIN_PASSWORD_HASH: bcrypt.hashSync(PASSWORD, 4),
       RESEND_API_KEY: 're_test_only', RESEND_BASE_URL: resend.url, RESEND_FROM_EMAIL: 'SHEREBOY TECH LTD <support@shereboytechltd.site>', FEEDBACK_INGEST_SECRET: 'test-ingest-secret', GEMINI_API_KEY: 'test-gemini-key', GEMINI_BASE_URL: gemini.url, GEMINI_MODEL: 'gemini-2.5-flash',
-      BLOG_API_BASE_URL: 'http://127.0.0.1:9', AFFILIATE_API_BASE_URL: 'http://127.0.0.1:9', SERVICE_WAKE_WINDOW_SECONDS: '1'
+      BLOG_API_BASE_URL: 'http://127.0.0.1:9', AFFILIATE_API_BASE_URL: 'http://127.0.0.1:9', SERVICE_WAKE_WINDOW_SECONDS: '1', ...extra
     },
     stdio: 'ignore'
   }));
@@ -88,7 +88,7 @@ before(async () => {
   }));
   procs.push(spawn(process.execPath, [path.join(__dirname, 'support', 'mock-db.js'), seed, String(DB_PORT)], { stdio: 'ignore' }));
   procs.push(spawn(process.execPath, [path.join(__dirname, 'support', 'mock-db.js'), seed, String(DB2_PORT), '--unmigrated'], { stdio: 'ignore' }));
-  procs.push(spawn(process.execPath, [path.join(__dirname, 'support', 'mock-db.js'), seed, String(DB3_PORT), '--before-comms'], { stdio: 'ignore' }));
+  procs.push(spawn(process.execPath, [path.join(__dirname, 'support', 'mock-db.js'), seed, String(DB3_PORT), '--before-comms'], { stdio: 'ignore', env: { ...process.env, MOCK_BUCKETS: 'shereboy-media' } }));
   await sleep(400);
   start(PORT, DB_PORT); start(PORT2, DB2_PORT); start(PORT3, DB3_PORT);
   await ready(PORT); await ready(PORT2); await ready(PORT3);
@@ -687,4 +687,24 @@ test('before the email and AI database update: feedback is saved, confirmed by e
   const ai = await get('/api/feedback-admin/ai/overview');
   assert.equal(ai.status, 409);
   assert.match(ai.data.error, /2026-11-09-feedback-email-ai\.sql/);
+});
+
+test('attachments that cannot be stored never cost the customer their feedback', async () => {
+  const base3 = `http://127.0.0.1:${PORT3}`;
+  const fd = new FormData();
+  Object.entries({ product: 'job-rush', rating: '3', category: 'bug', subject: 'Screenshot attached', message: 'The upload button freezes, see my screenshot.', name: 'Tayo', email: 'tayo@example.com' }).forEach(([k, v]) => fd.append(k, v));
+  fd.append('attachments', new Blob([PNG], { type: 'image/png' }), 'freeze.png');
+  const r = await fetch(`${base3}/api/feedback`, { method: 'POST', headers: { 'X-Forwarded-For': visitor() }, body: fd });
+  assert.equal(r.status, 201, 'saved, not refused');
+  const body = await r.json();
+  assert.equal(body.attachmentsSaved, false, 'the page can tell the customer');
+  const db3 = `http://127.0.0.1:${DB3_PORT}`;
+  const all = await fetch(`${db3}/__db`).then(x => x.json());
+  const row = all.feedback.find(x => x.reference === body.reference);
+  assert.ok(row, 'feedback stored');
+  assert.equal(all.feedback_attachments.filter(a => a.feedback_id === row.id).length, 0);
+  const note = all.feedback_internal_notes.find(n => n.feedback_id === row.id);
+  assert.ok(note, 'the team sees why on the ticket');
+  assert.match(note.note, /freeze\.png/);
+  assert.match(note.note, /doesn't exist in Supabase/);
 });

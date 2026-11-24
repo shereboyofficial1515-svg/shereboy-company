@@ -111,21 +111,28 @@ router.post('/', submitLimiter, (req, res, next) => receiveFiles(req, res, (err)
     if (dup && dup[0] && Date.now() - Date.parse(dup[0].created_at) < DUPLICATE_WINDOW_MS) return res.status(200).json({ success: true, reference: dup[0].reference, duplicate: true });
 
     const id = crypto.randomUUID();
+    // A storage problem never costs the customer their feedback: it is saved without the
+    // files, the customer is told, and the reason is noted on the ticket for the team
     let stored = [];
+    let attachmentProblem = null;
     if (files.length) {
-      const problem = await bucketProblem(PRIVATE_BUCKET, false);
-      if (problem) {
-        errorLog.record('feedback', problem);
-        return res.status(503).json({ error: 'We can\'t accept attachments right now. Please send your feedback without them.' });
-      }
-      for (const f of files) {
-        const path = `feedback/${id}/${crypto.randomBytes(8).toString('hex')}.${TYPES[f.mimetype].ext}`;
-        const { error } = await supabase.storage.from(PRIVATE_BUCKET).upload(path, f.buffer, { contentType: f.mimetype, upsert: false });
-        if (error) {
-          if (stored.length) await supabase.storage.from(PRIVATE_BUCKET).remove(stored.map(s => s.storage_path));
-          throw new Error(`Attachment upload failed: ${error.message}`);
+      attachmentProblem = await bucketProblem(PRIVATE_BUCKET, false);
+      if (!attachmentProblem) {
+        for (const f of files) {
+          const path = `feedback/${id}/${crypto.randomBytes(8).toString('hex')}.${TYPES[f.mimetype].ext}`;
+          const { error } = await supabase.storage.from(PRIVATE_BUCKET).upload(path, f.buffer, { contentType: f.mimetype, upsert: false });
+          if (error) {
+            if (stored.length) await supabase.storage.from(PRIVATE_BUCKET).remove(stored.map(s => s.storage_path));
+            stored = [];
+            attachmentProblem = `Uploading to the storage bucket "${PRIVATE_BUCKET}" failed: ${error.message}`;
+            break;
+          }
+          stored.push({ feedback_id: id, bucket: PRIVATE_BUCKET, storage_path: path, file_name: safeDisplayName(f.originalname), mime_type: f.mimetype, size_bytes: f.size });
         }
-        stored.push({ feedback_id: id, bucket: PRIVATE_BUCKET, storage_path: path, file_name: safeDisplayName(f.originalname), mime_type: f.mimetype, size_bytes: f.size });
+      }
+      if (attachmentProblem) {
+        errorLog.record('feedback', `Attachments not stored: ${attachmentProblem}`);
+        console.error('[feedback] attachments not stored:', attachmentProblem);
       }
     }
 
@@ -144,6 +151,12 @@ router.post('/', submitLimiter, (req, res, next) => receiveFiles(req, res, (err)
       }
     }
     if (stored.length) await supabase.from('feedback_attachments').insert(stored);
+    if (attachmentProblem) {
+      await supabase.from('feedback_internal_notes').insert({
+        feedback_id: id, admin_username: 'system',
+        note: `The customer attached ${files.length} file(s) (${files.map(f => safeDisplayName(f.originalname)).join(', ')}), but they could not be stored: ${attachmentProblem} Ask the customer to email them, quoting ${reference}.`.slice(0, 3000)
+      });
+    }
     // A candidate only: nothing is published until an administrator approves it
     if (allowPublish && !trapped) {
       await supabase.from('testimonials').insert({ feedback_id: id, product_id: product.id, status: 'pending', display_name: testimonialName(name, product.name), quote: message, rating });
@@ -153,11 +166,11 @@ router.post('/', submitLimiter, (req, res, next) => receiveFiles(req, res, (err)
       if (await commsReady()) await supabase.from('feedback').update({ ai_status: 'off' }).eq('id', id);
       errorLog.record('feedback', `${reference} saved as possible spam: the hidden anti-spam field was filled in`);
       console.warn(`[feedback] ${reference} saved as possible spam (hidden field filled in)`);
-      return res.status(201).json({ success: true, reference });
+      return res.status(201).json({ success: true, reference, ...(attachmentProblem ? { attachmentsSaved: false } : {}) });
     }
     notifyNewFeedback({ reference, product: product.name, rating, category: CATEGORIES[category], subject }).catch(() => {});
     // Saved: the customer gets their answer now; confirmation email and AI run afterwards
-    res.status(201).json({ success: true, reference });
+    res.status(201).json({ success: true, reference, ...(attachmentProblem ? { attachmentsSaved: false } : {}) });
     afterSubmit(id);
   } catch (err) {
     errorLog.record('feedback', err.message);
